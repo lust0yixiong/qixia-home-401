@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { initMaterialEditor } from './material-editor.js';
 import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
@@ -115,6 +116,7 @@ function sink(x,z,top=.95,w=.57,d=.42,rotation=0){
 }
 function build(){scene=new THREE.Scene();scene.background=new THREE.Color('#e9eeeb');scene.fog=new THREE.Fog('#e9eeeb',37,75);camera=new THREE.PerspectiveCamera(38,1,.05,150);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.setClearColor('#e9eeeb');$('#canvas-wrap').prepend(renderer.domElement);renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','可交互三维户型。拖动旋转，滚轮缩放，方向键平移。');controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.maxPolarAngle=Math.PI/2-.035;controls.minDistance=2;controls.maxDistance=43;controls.target.set(0,.2,0);controls.autoRotateSpeed=.55;controls.listenToKeyEvents(renderer.domElement);controls.addEventListener('start',()=>{flight=null});renderer.domElement.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){zoom(.85);e.preventDefault()}if(e.key==='-'){zoom(1.15);e.preventDefault()}});
 let stone=mat('#fff');stone.map=texture('stone');let wood=mat('#ffffff',.8);wood.map=texture('wood');M={wall:mat('#f5f2e8'),trim:mat('#b8b4a7',.4),stone,wood,cream:mat('#e7e3d7'),dark:mat('#343936',.45),darkwood:mat('#745b43'),linen:mat('#ddd6c3'),duvet:mat('#f5f1e8'),headboard:mat('#77786c'),wetTile:mat('#d7d9d1'),tileStrip:mat('#dadbd2'),mirror:mat('#cadbdc',.20,.25),frosted:new THREE.MeshPhysicalMaterial({color:'#e8e6dc',transparent:true,opacity:.76,roughness:.85,side:THREE.DoubleSide,depthWrite:false}),teaGlass:new THREE.MeshPhysicalMaterial({color:'#796351',transparent:true,opacity:.60,roughness:.16,metalness:.18,depthWrite:false}),white:mat('#faf8f1'),windowFrame:mat('#ffffff',.35,.08),thread:mat('#a6a899'),pink:mat('#c47f8b'),green:mat('#205b38',.25),chrome:mat('#bcc9c8',.22,.85),metal:mat('#626e68',.35,.7),brass:mat('#a88958',.4,.6),sink:mat('#656e69',.32,.55),glass:new THREE.MeshPhysicalMaterial({color:'#b3ced0',transparent:true,opacity:.17,roughness:.12,side:THREE.DoubleSide,depthWrite:false}),leaf:mat('#46633d'),pot:mat('#b6a58b'),rug:mat('#b6b5a6')};
+M.countertop=M.dark.clone();
 wallGroup=new THREE.Group();scene.add(wallGroup);openingGroup=new THREE.Group();scene.add(openingGroup);
 scene.add(new THREE.HemisphereLight('#fff9ed','#7d9187',2.6));let sun=new THREE.DirectionalLight('#fff1d7',3.2);sun.position.set(6,13,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.0004;sun.shadow.normalBias=.02;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#cbdedc',1.1);fill.position.set(-8,8,-7);scene.add(fill);
 box(0,-.37,0,200,.1,200,mat('#e9eeeb'));
@@ -157,7 +159,7 @@ const C=K.cooking,L=K.longSide,N=K.shortSide,I=K.island,T=K.table;
 // P.12/EL.01 cooking wall: 1500 mm base run + 500 mm tall end unit.
 const cookingBack=CW.frontZ-CW.depth,runW=CW.cookingWidth;
 slab(CW.x,cookingBack,runW,CW.depth,.05,.715,M.cream);
-slab(CW.x,cookingBack,runW,CW.depth,.765,.035,M.dark);
+slab(CW.x,cookingBack,runW,CW.depth,.765,.035,M.countertop);
 for(let i=0;i<3;i++)for(let y of[.08,.43])slab(CW.x+i*.5+.008,CW.frontZ+.002,.484,.018,y,.315,M.cream);
 slab(CW.x,cookingBack-.018,runW,.018,.80,.75,M.green);
 for(let x=CW.x+.08;x<CW.x+runW;x+=.11)slab(x,cookingBack-.001,.004,.003,.81,.73,M.trim);
@@ -207,10 +209,10 @@ function curvedSide(bottom,height,material){
  const g=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,curveSegments:20});g.rotateX(-Math.PI/2);
  const mesh=new THREE.Mesh(g,material);mesh.position.y=bottom;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);return mesh;
 }
-curvedSide(.05,KW.sill-.09,M.cream);curvedSide(KW.sill-.04,.04,M.dark);
+curvedSide(.05,KW.sill-.09,M.cream);curvedSide(KW.sill-.04,.04,M.countertop);
 for(let z=N.z+.015;z<N.z+N.depth-N.endRadius;z+=.45)slab(N.x+N.width-.008,z,.008,Math.min(.43,N.z+N.depth-N.endRadius-z),.1,KW.sill-.16,M.cream);
 slab(L.x,L.z,L.width,L.depth,.05,.88,M.cream);
-slab(L.x,L.z,L.width,L.depth,.93,.04,M.dark);
+slab(L.x,L.z,L.width,L.depth,.93,.04,M.countertop);
 // Missing west return and timber gas-meter access cabinet, P.01 / EL.01.
 const gasBack=Z(GC.backPlanZ),gasFront=Z(GC.frontPlanZ),gasDepth=gasFront-gasBack;
 const gasReturn=rect(planX(GC.x),GC.returnPier.startPlanZ,planX(GC.x+GC.width),GC.returnPier.endPlanZ,0,D.ceiling,M.wall,wallGroup);gasReturn.name='gas-cabinet-wall-return';
@@ -237,8 +239,8 @@ sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
 const barFront=I.z+I.depth-D.island.seatingRecess,stoneEnd=D.island.endPanel;
 const barDoorThickness=.018,barInnerWidth=I.width-2*stoneEnd;
 slab(I.x+stoneEnd,I.z,barInnerWidth,barFront-I.z-barDoorThickness,.04,.85,M.cream);
-slab(I.x,I.z,I.width,I.depth,D.island.top-D.island.topThickness,D.island.topThickness,M.dark);
-for(let x of[I.x,I.x+I.width-stoneEnd])slab(x,I.z,stoneEnd,I.depth,0,.89,M.dark);
+slab(I.x,I.z,I.width,I.depth,D.island.top-D.island.topThickness,D.island.topThickness,M.countertop);
+for(let x of[I.x,I.x+I.width-stoneEnd])slab(x,I.z,stoneEnd,I.depth,0,.89,M.countertop);
 for(let n=0;n<2;n++)slab(I.x+stoneEnd+.007+n*barInnerWidth/2,barFront-barDoorThickness,barInnerWidth/2-.014,barDoorThickness,.06,.81,M.wood);
 // Working side: drawers, dishwasher, sink cabinet, as the island plan.
 for(let y of[.08,.345,.61])slab(I.x+.008,I.z-.018,.484,.018,y,.25,M.cream);
@@ -246,7 +248,7 @@ slab(I.x+.508,I.z-.02,.584,.022,.06,.815,M.cream);
 slab(I.x+.508,I.z-.043,.584,.018,.79,.07,M.metal);
 slab(I.x+1.108,I.z-.018,.884,.018,.06,.815,M.cream);
 sink(planX(I.x+1.52),planZ(I.z+.34),D.island.top,.80,.52,Math.PI);
-slab(T.x,T.z,T.width,T.depth,D.table.top-D.table.topThickness,D.table.topThickness,M.dark);
+slab(T.x,T.z,T.width,T.depth,D.table.top-D.table.topThickness,D.table.topThickness,M.countertop);
 slab(T.x+T.width-.065,T.z,.065,T.depth,0,.74,M.cream);
 stool(planX(I.x+.55),planZ(I.z+I.depth+.30));stool(planX(I.x+1.32),planZ(I.z+I.depth+.30));
 chair(planX(T.x+.63),planZ(T.z-.15));chair(planX(T.x+1.24),planZ(T.z-.15));
@@ -435,6 +437,7 @@ for(let x of[1094,1296])outlet(X(x),.79,Z(277),0,.172,wallGroup);
 // Ceiling-free view retains selected light fittings as low-profile design cues.
 const led=new THREE.MeshStandardMaterial({color:'#f5d99f',emissive:'#f7c782',emissiveIntensity:.7});slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,led);slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,led);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
+initMaterialEditor({THREE,materials:M,renderer,onOpen:()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
 wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
 }
 function moveCamera(r,immediate=false){if(!camera)return;let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
