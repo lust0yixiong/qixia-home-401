@@ -295,8 +295,11 @@ const portalZ=Z(GC.doorLinePlanZ),portalLeft=GC.x+GC.width,portalRight=CW.x;
 const portal=new THREE.Group();portal.name='kitchen-bedroom-timber-portal';scene.add(portal);
 // The west return is the left reveal; cladding wraps its passage-facing edge.
 box(portalLeft+.009,1.175,Z((GC.returnPier.startPlanZ+GC.returnPier.endPlanZ)/2),.018,2.35,(GC.returnPier.endPlanZ-GC.returnPier.startPlanZ)/85.6,M.wood,portal);
-// Continuous right cheek joins the opening to the cooking counter front.
-box(portalRight-.014,1.175,(portalZ+CW.frontZ)/2,.028,2.35,CW.frontZ-portalZ+.018,M.wood,portal);
+// Rendering 03: the lower cheek reaches the base front; above the worktop it
+// steps back to the 300 mm upper-cabinet depth. Register the original envelope
+// first so existing per-component material plans keep their stable identifier.
+const kitchenCheek=box(portalRight-.014,1.175,(portalZ+CW.frontZ)/2,.028,2.35,CW.frontZ-portalZ+.018,M.wood,portal);
+kitchenCheek.name='stepped-kitchen-end-cheek';
 // Wood wraps the back jamb, so it reads as a reveal rather than a free-standing door.
 box(portalRight-.036,1.095,portalZ,.044,2.19,.10,M.wood,portal);
 box(portalLeft+.014,1.095,portalZ,.028,2.19,.10,M.wood,portal);
@@ -446,6 +449,21 @@ slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,vanityLed);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
 renderQuality=createRenderQuality({renderer,scene,camera,sun});
 initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onOpen:()=>{lightingDesign?.close();controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
+// Shape the existing registered cheek, preserving its material and component key.
+// Upper depth is the model's 300 mm cabinet depth; the 230 mm inset is inferred
+// from rendering 03 rather than a newly claimed construction dimension.
+{
+ const {width,height,depth}=kitchenCheek.geometry.parameters;
+ const back=-depth/2,front=depth/2,upperFront=front-(CW.depth-.30);
+ const bottom=-height/2,top=height/2,step=D.kitchen.baseTop-kitchenCheek.position.y;
+ const profile=new THREE.Shape();
+ profile.moveTo(-back,bottom);profile.lineTo(-front,bottom);
+ profile.lineTo(-front,step);profile.lineTo(-upperFront,step);
+ profile.lineTo(-upperFront,top);profile.lineTo(-back,top);profile.closePath();
+ const geometry=new THREE.ExtrudeGeometry(profile,{depth:width,bevelEnabled:false,steps:1});
+ geometry.rotateY(Math.PI/2);geometry.translate(-width/2,0,0);
+ kitchenCheek.geometry.dispose();kitchenCheek.geometry=geometry;
+}
 softenFurnitureEdges(scene,M);
 // Added after the registry so ceiling fittings do not intercept surface material picking.
 lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,extras:[
