@@ -1,6 +1,6 @@
 // Exterior study of Hauswirt C9 Pro. Envelope is provisionally based on the
 // manufacturer's C9 dimensions, not a verified C9 Pro installation drawing.
-export const coffeeMachineSpec=Object.freeze({width:.315,depth:.493,height:.406,backGap:.035,offsetZ:1.82,top:.970});
+export const coffeeMachineSpec=Object.freeze({width:.315,depth:.493,height:.406,backGap:.035,offsetZ:2.0625,top:.970});
 export function installCoffeeMachine({THREE,scene,counter}){
  const S=coffeeMachineSpec,root=new THREE.Group();root.name='hauswirt-c9-pro';
  // Local +Z is the operating face; turn it towards the kitchen aisle (+world X).

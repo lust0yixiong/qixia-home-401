@@ -9,7 +9,7 @@ import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitch
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
 import {recessWestCabinet} from './west-cabinet.mjs?v=34';
-import {installCoffeeMachine,coffeeMachineSpec} from './coffee-machine.mjs?v=36';
+import {installCoffeeMachine,coffeeMachineSpec} from './coffee-machine.mjs?v=37';
 import {installRoundSink} from './round-sink.mjs?v=35';
 import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';

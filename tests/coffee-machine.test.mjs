@@ -14,7 +14,7 @@ test('coffee machine fits the countertop south of the round sink and faces the a
  for(const name of ['coffee-plinth','coffee-foot']){
   const b=new THREE.Box3().setFromObject(root.getObjectByName(name));assert(b.max.x<L.x+L.width);assert(b.min.x>L.x);
  }
- assert(bound.max.z<L.z+L.depth-.20,'clear of the perpendicular raised entry cabinet');
+ assert(Math.abs(L.z+L.depth-bound.max.z-.020)<.002,'sit beside the raised entry cabinet with a 20 mm gap');
  assert(bound.min.z>L.z+.93+.16+.3,'leave working space beside the round sink');
  assert(bound.max.y<S.top+S.height+.005);
 });
