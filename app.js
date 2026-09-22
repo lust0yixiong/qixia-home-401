@@ -8,6 +8,7 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {installRoundSink} from './round-sink.mjs?v=32';
 import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';
 const $=s=>document.querySelector(s);
@@ -24,7 +25,7 @@ let islandSink=null;
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#round-sink-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
@@ -223,8 +224,8 @@ function curvedSide(bottom,height,material){
 }
 curvedSide(.05,KW.sill-.09,M.cream);curvedSide(KW.sill-.04,.04,M.countertop);
 for(let z=N.z+.015;z<N.z+N.depth-N.endRadius;z+=.45)slab(N.x+N.width-.008,z,.008,Math.min(.43,N.z+N.depth-N.endRadius-z),.1,KW.sill-.16,M.cream);
-slab(L.x,L.z,L.width,L.depth,.05,.88,M.cream);
-slab(L.x,L.z,L.width,L.depth,.93,.04,M.countertop);
+const westCounterBody=slab(L.x,L.z,L.width,L.depth,.05,.88,M.cream);
+const westCounterTop=slab(L.x,L.z,L.width,L.depth,.93,.04,M.countertop);
 // Missing west return and timber gas-meter access cabinet, P.01 / EL.01.
 const gasBack=Z(GC.backPlanZ),gasFront=Z(GC.frontPlanZ),gasDepth=gasFront-gasBack;
 const gasReturn=rect(planX(GC.x),GC.returnPier.startPlanZ,planX(GC.x+GC.width),GC.returnPier.endPlanZ,0,D.ceiling,M.wall,wallGroup);gasReturn.name='gas-cabinet-wall-return';
@@ -244,7 +245,7 @@ for(let i=0;i<gasLevels.length-1;i++){
 box(GC.x+GC.width-.055,1.72,gasFront+.023,.015,.105,.012,M.brass,gasGroup);
 // Cabinet fronts face the aisle. The small basin belongs on this south run.
 let segmentStart=L.z;for(let d of[.60,.65,.55,.44]){slab(L.x+L.width-.008,segmentStart+.007,.008,d-.014,.10,.78,M.cream);slab(L.x+L.width,segmentStart+.045,.016,.17,.65,.014,M.brass);segmentStart+=d}
-sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
+const legacyWestSink=sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
 // EL.08: island 1010 high, 120 mm stone fascia; table 800 high, 60 mm top.
 // Rendering 03: the bar-facing doors sit behind the stone overhang.
 // Recess the actual cabinet volume as well as its door skins; keep the 2000 x 1100 outer top.
@@ -474,6 +475,7 @@ initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onChan
 }
 correctFlexStorage({THREE,F,right:fxRight,back:fz,wardrobe:flexWardrobe,service:flexStorage,partition:flexPartition});
 islandSink=installIslandSink({THREE,scene,island:I,top:islandTop,body:islandBody,legacy:legacyIslandSink,materials:M});
+installRoundSink({THREE,scene,top:westCounterTop,body:westCounterBody,legacy:legacyWestSink,metal:M.chrome});
 softenFurnitureEdges(scene,M);
 // Added after the registry so ceiling fittings do not intercept surface material picking.
 lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>renderQuality.invalidate(),extras:[
@@ -518,6 +520,7 @@ $('#storage-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#ro
 $('#vanity-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'vanity-detail',x:790,z:527,dist:3.7,aimY:1.0,fit:false,direction:[.4,1.4,-1]})};
 $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'kitchen-detail',x:480,z:565,dist:4.2,aimY:1.1,fit:false,direction:[.28,.34,1]})};
 $('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
+$('#round-sink-detail').onclick=()=>{controls.autoRotate=false;topMode=false;updateViewButtons();const L=K.longSide;moveCamera({id:'round-sink-detail',x:planX(L.x+.29),z:planZ(L.z+.93),dist:2,aimY:.95,fit:false,direction:[1.2,1.5,.35]});};
 $('#sink-accessories').onclick=()=>{if(!islandSink)return;islandSink.accessories.visible=!islandSink.accessories.visible;$('#sink-accessories').setAttribute('aria-pressed',String(islandSink.accessories.visible));$('#sink-accessories').textContent=islandSink.accessories.visible?'移开水槽配件':'放回水槽配件';renderQuality.invalidate();};
 $('#walls').onclick=()=>{renderQuality.invalidate();fullWalls=!fullWalls;wallGroup.scale.y=fullWalls?1:.25;openingGroup.visible=fullWalls;$('#walls').setAttribute('aria-pressed',String(fullWalls));$('#walls').textContent=fullWalls?'降低墙体':'完整墙体'};
 $('#labels-toggle').onclick=()=>{showLabels=!showLabels;$('#labels-toggle').setAttribute('aria-pressed',String(showLabels))};$('#rotate').onclick=()=>{controls.autoRotate=!controls.autoRotate;$('#rotate').setAttribute('aria-pressed',String(controls.autoRotate));$('#rotate').textContent=controls.autoRotate?'停止旋转':'自动旋转'};$('#top').onclick=()=>{topMode=true;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#orbit').onclick=()=>{topMode=false;updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#reset').onclick=()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';selectRoom('all')};function zoom(f){if(!camera)return;flight=null;let offset=camera.position.clone().sub(controls.target).multiplyScalar(f);offset.clampLength(controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset);controls.update()}$('#zoom-in').onclick=()=>zoom(.85);$('#zoom-out').onclick=()=>zoom(1.15);
