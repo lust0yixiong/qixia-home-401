@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from '../assets/three.module.js';
+import {createWetSharedDoor} from '../wet-shared-door.mjs';
+import {createPhotoSnapshot} from '../photo-scene.mjs';
+const X=p=>(p-855)/85.6,Z=p=>(p-610)/85.6;
+test('one shared leaf alternates the two entrances without a fixed divider',()=>{
+ const scene=new THREE.Scene(),openingGroup=new THREE.Group();scene.add(openingGroup);
+ const m=new THREE.MeshStandardMaterial(),materials={wood:m,wall:m,frosted:m,metal:m,chrome:m};
+ const legacy=[new THREE.Group(),new THREE.Group()],divider=new THREE.Group();divider.skirt=new THREE.Group();
+ const door=createWetSharedDoor({THREE,scene,openingGroup,materials,legacy,divider});
+ assert(legacy.every(o=>!o.visible));assert(!divider.visible&&!divider.skirt.visible);
+ const blocked=x=>{scene.updateMatrixWorld(true);return new THREE.Raycaster(new THREE.Vector3(X(x),1.3,Z(450)),new THREE.Vector3(0,0,-1),0,1).intersectObject(door.root,true).length>0;};
+ assert.equal(blocked(854),false,'laundry entrance open by default');assert.equal(blocked(954),true,'shared leaf closes shower');
+ door.setSide('laundry');assert.equal(blocked(854),true);assert.equal(blocked(954),false);
+ door.setSide('between');scene.updateMatrixWorld(true);
+ const box=new THREE.Box3().setFromObject(door.leaf);
+ assert(box.min.z>Z(267),'door clears rear wall');
+ const leafFrame=door.leaf.children.filter(o=>!o.name.includes('handle'));
+ const frameBox=new THREE.Box3();for(const mesh of leafFrame)frameBox.union(new THREE.Box3().setFromObject(mesh));
+ assert(frameBox.min.x>X(806)+.65+.47,'door clears laundry cabinetry when between bays');
+ assert.equal(door.root.children.filter(o=>o.name==='single-wet-shared-leaf').length,1);
+ const snapshot=createPhotoSnapshot(THREE,scene,{sources:[]},THREE.SpotLight);
+ for(const mesh of snapshot.scene.children)for(const k of ['position','normal','uv','tangent'])assert([...mesh.geometry.attributes[k].array].every(Number.isFinite));
+ snapshot.dispose();
+});

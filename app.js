@@ -8,6 +8,7 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {createWetSharedDoor} from './wet-shared-door.mjs?v=41';
 import {createBunkBed,bunkBedPlacement} from './bunk-bed.mjs?v=40';
 import {correctWestJunctions} from './west-junctions.mjs?v=38';
 import {recessWestCabinet} from './west-cabinet.mjs?v=39';
@@ -20,15 +21,15 @@ const rooms=[
 {id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，台面距岛台净宽 1360 毫米，下柜内退 200 毫米。',facts:['海氏 C9 Pro 咖啡机','骊住 3D 水槽 830 × 560','西柜深 400 · 台面深 600','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
 {id:'master',name:'主卧室',en:'MASTER BEDROOM',desc:'双人床与转角衣柜相对，窗侧保留通道。暖木色与浅色织物延续原设计。',facts:['床 1800 × 2000','衣柜进深约 600'],x:1150,z:410,dist:8.0},
 {id:'second',name:'次卧室',en:'SECOND BEDROOM',desc:'双层床长边靠北墙、床头靠东墙，梯子位于外侧。床架参考 VITVAL 尺寸，保留原方案粉色。',facts:['床架 2070 × 970 × 1650','上下铺床垫 2000 × 900','衣柜 2050 × 510'],x:555,z:410,dist:6.7},
-{id:'bath',name:'卫浴与洗衣',en:'BATH & LAUNDRY',desc:'卫生间、洗衣房和淋浴区依次分开，外置洗漱台让日常使用更从容。',facts:['洗烘位 650 × 650','洗漱台 900 + 580 · 端部 100','抽拉高柜：面宽 340 · 进深 680'],x:855,z:425,dist:8.8},
+{id:'bath',name:'卫浴与洗衣',en:'BATH & LAUNDRY',desc:'洗衣区与淋浴区共用一扇可向两侧转动的门，卫生间独立；外置洗漱台保留干区通道。',facts:['洗衣与淋浴共用门','洗烘位 650 × 650','洗漱台 900 + 580 · 端部 100','抽拉高柜：面宽 340 · 进深 680'],x:855,z:425,dist:8.8},
 {id:'flex',name:'多功能活动区',en:'FLEXIBLE LIVING',desc:'活动区按图纸保留开放地面，配整墙收纳与靠南墙收拢的四扇折叠移门，向右侧阳台延伸。',facts:['衣柜 3400 × 600','8百库 800 × 800 · 过道侧开门','四扇折叠移门'],x:1130,z:765,dist:8.7}
 ];
 let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,renderer,scene,camera,controls,flight=null,wallGroup,openingGroup,labelItems=[],frame=0;
-let islandSink=null;
+let islandSink=null,sharedWetDoor=null,wetDoorSide='shower';
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#wet-entry-detail').classList.toggle('hidden',id!=='bath');$('#wet-shared-toggle').classList.toggle('hidden',id!=='bath');$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
@@ -153,7 +154,7 @@ tileJoints([X(723),Z(276),X(1000),Z(415)],...D.flooring.wet,()=>true,.032);
 // Envelope; gaps match the drawing's entrance and windows.
 wall(400,267,425,267);windowWall(425,267,502,267);wall(502,267,1368,267);wall(400,267,400,356);windowWall(400,356,400,485);wall(400,485,400,KW.startPlanZ);kitchenWindowWall();const westStepWalls=[wall(400,KW.endPlanZ,400,stepZ),wall(340,stepZ,400,stepZ),wall(340,stepZ,340,760)];windowWall(340,760,340,870,.18,.97,1.44,2);wall(340,870,340,945);wall(340,945,720,945);wall(804,945,1314,945);wall(1368,267,1368,352);windowWall(1368,352,1368,492);windowWall(1368,492,1314,553,.18,.78,1.65,1);wall(1314,553,1314,688);wall(1314,860,1314,945);
 // Interior partitions and the three wet rooms.
-wall(712,267,712,416,.22);wall(planX(CW.pierX+CW.pierWidth/2),501,planX(CW.pierX+CW.pierWidth/2),planZ(CW.frontZ),CW.pierWidth);wall(526,549,712,549,.20);wall(723,565,724+D.vanity.basinBay*85.6,565,.12);wall(950,418,950,482,.20);const flexPartition=wall(950,575,1314,575,.22);wall(1004,267,1004,415,.12);wall(804,267,804,411,.085);wall(902,267,902,411,.06);// Thin front glazing replaces the erroneous solid stubs across the wet-room entrances.
+wall(712,267,712,416,.22);wall(planX(CW.pierX+CW.pierWidth/2),501,planX(CW.pierX+CW.pierWidth/2),planZ(CW.frontZ),CW.pierWidth);wall(526,549,712,549,.20);wall(723,565,724+D.vanity.basinBay*85.6,565,.12);wall(950,418,950,482,.20);const flexPartition=wall(950,575,1314,575,.22);wall(1004,267,1004,415,.12);wall(804,267,804,411,.085);const wetDivider=wall(902,267,902,411,.06);// Thin front glazing replaces the erroneous solid stubs across the wet-room entrances.
 rect(905,267,945,302,0,D.ceiling,M.wall,wallGroup);
 // Balcony rail is independent of cutaway wall height. P.08: 400 mm tiles.
 rect(1315,609,1455,904,-.16,.18,M.stone);
@@ -343,11 +344,13 @@ const lsx=wx+.65,LS=D.laundrySide;
 slab(lsx,wz,LS.width,LS.depth,.04,.70,M.cream);slab(lsx,wz,LS.width,LS.depth,.74,.022,M.white);
 slab(lsx,wz,.47,.18,1.24,1.07,M.cream);
 for(let y of[1.27,1.80])slab(lsx+.018,wz+.18,.434,.018,y,.50,M.cream);
-// Fixed side glazing and separate front doors, instead of opaque wall pieces.
-rect(902,333,903,415,.02,2.33,M.glass);doorway(723,415,804,415,2.35,M.wood);doorway(804,415,902,415,2.35,M.wood);doorway(902,415,1004,415,2.35,M.wood);
-doorLeaf(725,415,802,415,2.35,M.wood,M.frosted,openingGroup);
+// Keep toilet independent; register the old wet fronts before replacing them.
+const oldWetSceneStart=scene.children.length,oldWetOpeningStart=openingGroup.children.length;
+rect(902,333,903,415,.02,2.33,M.glass);doorway(804,415,902,415,2.35,M.wood);doorway(902,415,1004,415,2.35,M.wood);
 doorLeaf(806,415,900,415,2.35,M.wood,M.frosted,openingGroup);
 doorLeaf(904,415,1002,415,2.35,M.wood,M.frosted,openingGroup);
+const oldWetFronts=[...scene.children.slice(oldWetSceneStart),...openingGroup.children.slice(oldWetOpeningStart)];
+doorway(723,415,804,415,2.35,M.wood);doorLeaf(725,415,802,415,2.35,M.wood,M.frosted,openingGroup);
 rod([X(984),.95,Z(299)],[X(984),2.14,Z(299)],.015,M.chrome);rod([X(984),2.14,Z(299)],[X(964),2.14,Z(299)],.015,M.chrome);cyl(X(964),2.12,Z(299),.11,.025,M.chrome);rect(974,380,990,383,.034,.005,M.metal);
 // P.12: 900 + 580 vanity/mirror bays, plus a 100 mm end bay; 450 mm basin depth.
 // EL.03: 800 counter + 200 splashback + 800 mirror + 550 upper cupboard = 2350.
@@ -484,6 +487,7 @@ islandSink=installIslandSink({THREE,scene,island:I,top:islandTop,body:islandBody
 legacyWestSink.forEach(mesh=>mesh.visible=false);
 recessWestCabinet({THREE,body:westCounterBody,fronts:westCounterFronts,handles:westCounterHandles});
 correctWestJunctions({THREE,layout:K,window:KW,gas:GC,height:D.ceiling,walls:westStepWalls,body:northCounterBody,top:northCounterTop});
+sharedWetDoor=createWetSharedDoor({THREE,scene,openingGroup,materials:M,legacy:oldWetFronts,divider:wetDivider});
 softenFurnitureEdges(scene,M);
 installCoffeeMachine({THREE,scene,counter:L});
 // Added after the registry so ceiling fittings do not intercept surface material picking.
@@ -530,6 +534,8 @@ $('#vanity-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rot
 $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'kitchen-detail',x:480,z:565,dist:4.2,aimY:1.1,fit:false,direction:[.28,.34,1]})};
 $('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
 $('#west-junction-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'west-junction-detail',x:planX(K.shortSide.x-.18),z:planZ(K.longSide.z),dist:2.6,aimY:1.1,fit:false,direction:[1,.32,1.25]});};
+$('#wet-entry-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'wet-entry-detail',x:854,z:362,dist:3.0,aimY:1.1,fit:true,direction:[.15,.24,1]});};
+$('#wet-shared-toggle').onclick=()=>{if(!sharedWetDoor)return;if(!fullWalls)$('#walls').click();wetDoorSide=wetDoorSide==='shower'?'laundry':'shower';sharedWetDoor.setSide(wetDoorSide);$('#wet-shared-toggle').textContent=wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧';$('#wet-shared-toggle').setAttribute('aria-label',wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧');renderQuality.invalidate();};
 $('#bunk-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();const p=bunkBedPlacement();moveCamera({id:'bunk-detail',x:planX(p.x),z:planZ(p.z+.15),dist:3.45,aimY:.92,fit:true,direction:[-.65,.85,1]});};
 $('#coffee-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const L=K.longSide;moveCamera({id:'coffee-detail',x:planX(L.x+.32),z:planZ(L.z+coffeeMachineSpec.offsetZ),dist:1.65,aimY:1.16,fit:false,direction:[1,.5,-.7]});};
 $('#west-counter-detail').onclick=()=>{controls.autoRotate=false;topMode=false;updateViewButtons();const L=K.longSide;moveCamera({id:'west-counter-detail',x:planX(L.x+.29),z:planZ(L.z+.93),dist:2,aimY:.95,fit:false,direction:[1.2,1.5,.35]});};
