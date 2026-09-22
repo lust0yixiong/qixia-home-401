@@ -1,4 +1,4 @@
-import {FINISHES} from './surface-finishes.js?v=20';
+import {FINISHES} from './surface-finishes.js?v=21';
 import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
@@ -105,6 +105,8 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     <label for="material-scope">修改范围</label><select id="material-scope"><option value="group">同类整体</option><option value="surface" disabled>仅此部件</option></select>
     <p class="material-note" id="material-scope-note">整体修改会覆盖该类部件的单独设置。</p>
     <label for="material-preset">材质预设</label><select id="material-preset"><option value="">自定义 / 原始材质</option></select>
+    <details class="material-library"><summary>浏览实拍材质 · 6 款</summary><div id="material-swatches"></div><p class="material-note">Poly Haven · CC0 授权，已内置到网站。</p></details>
+    <p id="material-source" class="material-note"></p>
     <div class="material-color-row"><label for="material-color">表面颜色</label><input id="material-color" type="color"><input id="material-hex" aria-label="颜色十六进制值" maxlength="7" spellcheck="false"></div>
     <p class="material-note">有贴图时，颜色会叠加在贴图上；白色保留素材原色。</p>
     <div class="texture-preview"><img id="material-preview" alt="当前纹理预览" hidden><span id="material-texture-name"></span></div>
@@ -127,6 +129,11 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
   const $ = id => panel.querySelector(`#${id}`), target = $('material-target');
   for (const [id, label] of GROUPS) target.add(new Option(label, id));
   for(const p of FINISHES)$('material-preset').add(new Option(p.name,p.id));
+  for(const p of FINISHES.filter(p=>p.asset)){
+    const b=document.createElement('button');b.type='button';b.dataset.preset=p.id;b.setAttribute('aria-label',`使用${p.name}`);
+    b.innerHTML=`<img src="./assets/materials/${p.id}-color.jpg" alt="" loading="lazy"><span>${p.name}</span>`;
+    b.onclick=()=>choosePreset(p.id);$('material-swatches').append(b);
+  }
   let active = 'wood', selectedSurface = null, busy = true, saveTimer, saveChain = Promise.resolve(), revision = 0;
   const status = message => { $('material-status').textContent = message; };
   const baseOf = key => surfaces.registry.get(key)?.base || key;
@@ -204,6 +211,10 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     const preview = $('material-preview');preview.hidden = !hasMap;
     if (hasMap) preview.src = c.image || (currentMaterial.map.image.toDataURL?.()||currentMaterial.map.image.src);else preview.removeAttribute('src');
     $('material-texture-name').textContent = c.mode === 'custom' ? c.name : c.mode==='preset'?FINISHES.find(p=>p.id===c.preset).name:hasMap?'原始纹理':'纯色表面';
+    for(const b of $('material-swatches').children)b.setAttribute('aria-pressed',String(c.mode==='preset'&&c.preset===b.dataset.preset));
+    const preset=FINISHES.find(p=>p.id===c.preset&&c.mode==='preset');
+    $('material-source').replaceChildren();
+    if(preset?.asset){const a=document.createElement('a');a.href=`https://polyhaven.com/a/${preset.asset}`;a.target='_blank';a.rel='noopener';a.textContent='查看素材来源与 CC0 授权 ↗';$('material-source').append(a);}
     $('material-hex').setCustomValidity('');
   }
   function restore(key) {
@@ -233,11 +244,17 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
   for (const [id, prop] of [['repeat-x','repeatX'],['repeat-y','repeatY'],['rotation','rotation'],['roughness','roughness'],['metalness','metalness']]) {
     $(`material-${id}`).oninput = e => {ensureEditable();settings[active][prop] = Number(e.target.value);apply(active);const output = $(`material-${id}-value`);if(output) output.value = e.target.value;save();};
   }
-  $('material-preset').onchange=()=>{
-    const p=FINISHES.find(p=>p.id===$('material-preset').value);if(!p){sync();return;}
-    ensureEditable();settings[active]={mode:'preset',preset:p.id,color:p.color,roughness:p.roughness,metalness:p.metalness,repeatX:1,repeatY:1,rotation:0};
-    replaceMap(active,finishLibrary.get(p.id).map?.clone()||null);apply(active);sync();save();
-  };
+  async function choosePreset(id){
+    if(busy)return;
+    const p=FINISHES.find(p=>p.id===id);if(!p){sync();return;}
+    const key=active;setBusy(true);status('正在加载材质…');
+    try{
+      const source=await finishLibrary.ensure(p.id);
+      ensureEditable(key);settings[key]={mode:'preset',preset:p.id,color:p.color,roughness:p.roughness,metalness:p.metalness,repeatX:1,repeatY:1,rotation:0};
+      replaceMap(key,source.map?.clone()||null);apply(key);sync();save();
+    }catch{sync();status('素材加载失败，原有材质已保留。请重试。');}finally{setBusy(false);}
+  }
+  $('material-preset').onchange=()=>choosePreset($('material-preset').value);
   $('material-upload').onclick = () => $('material-file').click();
   $('material-file').onchange = async e => {
     const file = e.target.files[0];e.target.value = '';if (!file || busy) return;
@@ -266,7 +283,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
           const bytes = Uint8Array.from(atob(c.image.split(',')[1]), ch => ch.charCodeAt(0));
           const {canvas, data} = await decodeImage(new Blob([bytes], {type: c.image.slice(5,c.image.indexOf(';'))}));
           c.image = data;prepared.set(key, mapFromCanvas(canvas));
-        } else if(c?.mode==='preset'){const map=finishLibrary.get(c.preset).map;if(map)prepared.set(key,map.clone());}
+        } else if(c?.mode==='preset'){const map=(await finishLibrary.ensure(c.preset)).map;if(map)prepared.set(key,map.clone());}
         else if ((!c || c.mode === 'original') && defaults[base].map) prepared.set(key, defaults[base].map.clone());
       }
     } catch (error) {for (const map of prepared.values()) map.dispose();throw error;}

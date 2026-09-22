@@ -1,11 +1,16 @@
 // Bundled CC0 oak scans plus locally generated seamless PBR surfaces.
 export const FINISHES = [
   {id:'paint',name:'哑光烤漆',color:'#e8e4dc',roughness:.68,metalness:0},
-  {id:'oak',name:'自然橡木',color:'#ffffff',roughness:.58,metalness:0},
+  {id:'oak',name:'自然橡木',color:'#ffffff',roughness:.58,metalness:0,asset:'oak_veneer_01'},
   {id:'walnut',name:'深色胡桃木',color:'#ffffff',roughness:.52,metalness:0},
   {id:'limestone',name:'浅色石材',color:'#ffffff',roughness:.6,metalness:0},
   {id:'slate',name:'深灰岩板',color:'#ffffff',roughness:.38,metalness:0},
-  {id:'brushed',name:'拉丝金属',color:'#c2c8c6',roughness:.35,metalness:1}
+  {id:'brushed',name:'拉丝金属',color:'#c2c8c6',roughness:.35,metalness:1},
+  {id:'walnut-natural',name:'天然黑胡桃木',color:'#ffffff',roughness:.65,metalness:0,asset:'black_walnut_veneer_01'},
+  {id:'marble-beige',name:'米色大理石',color:'#ffffff',roughness:.32,metalness:0,asset:'marble_01'},
+  {id:'terrazzo',name:'彩粒水磨石',color:'#ffffff',roughness:.6,metalness:0,asset:'terrazzo_tiles'},
+  {id:'plaster-fine',name:'白色灰泥',color:'#ffffff',roughness:.95,metalness:0,asset:'white_stucco'},
+  {id:'fabric-check',name:'格纹织物',color:'#ffffff',roughness:1,metalness:0,asset:'fabric_pattern_05'}
 ];
 const TAU=Math.PI*2;
 function noise(x,y,frequency,seed=0) {
@@ -59,21 +64,31 @@ export function createFinishLibrary(THREE,renderer) {
     const value={map:['paint','fabric','brushed'].includes(id)?null:textures[0],bump:textures[1],rough:textures[2]};
     if(!value.map)textures[0].dispose();cache.set(id,value);return value;
   }
-  async function preload(){
-    const loader=new THREE.TextureLoader();
-    const jobs=await Promise.allSettled(['color','normal','roughness'].map(name=>loader.loadAsync(`./assets/materials/oak-${name}.jpg`)));
-    if(jobs.some(r=>r.status==='rejected')){for(const r of jobs)if(r.status==='fulfilled')r.value.dispose();console.warn('木纹图片暂不可用，采用内置备用纹理。');return;}
-    const textures=jobs.map(r=>r.value);
-    textures.forEach((t,i)=>{t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());});
-    cache.set('oak',{map:textures[0],normal:textures[1],rough:textures[2],bump:null});
+  const pending=new Map();
+  async function ensure(id){
+    if(!FINISHES.find(p=>p.id===id)?.asset)return get(id);
+    if(cache.get(id)?.normal)return cache.get(id);
+    if(pending.has(id))return pending.get(id);
+    const job=(async()=>{
+      const loader=new THREE.TextureLoader();
+      // A failed request leaves the active material and saved configuration untouched.
+      const jobs=await Promise.allSettled(['color','normal','roughness'].map(name=>loader.loadAsync(`./assets/materials/${id}-${name}.jpg`)));
+      if(jobs.some(r=>r.status==='rejected')){for(const r of jobs)if(r.status==='fulfilled')r.value.dispose();throw Error('素材加载失败');}
+      const textures=jobs.map(r=>r.value);
+      textures.forEach((t,i)=>{t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());});
+      const value={map:textures[0],normal:textures[1],rough:textures[2],bump:null};cache.set(id,value);return value;
+    })();
+    pending.set(id,job);try{return await job;}finally{pending.delete(id);}
   }
+  async function preload(){try{await ensure('oak');}catch{console.warn('木纹图片暂不可用，采用内置备用纹理。');}}
   function dispose(material){const record=owned.get(material);if(record){record.maps.forEach(t=>t?.dispose());owned.delete(material);}}
   function decorate(material,config,base) {
     const kind=config.mode==='preset'?config.preset:config.mode==='original'?(baseKinds[base]||null):null;
     let record=owned.get(material);
-    if(!record||record.kind!==kind){
-      dispose(material);const source=kind?get(kind):null;
-      record={kind,maps:source?[source.bump?.clone()||null,source.rough.clone(),source.normal?.clone()||null]:[]};owned.set(material,record);
+    const source=kind?get(kind):null;
+    if(!record||record.kind!==kind||record.source!==source){
+      dispose(material);
+      record={kind,source,maps:source?[source.bump?.clone()||null,source.rough.clone(),source.normal?.clone()||null]:[]};owned.set(material,record);
       material.bumpMap=record.maps[0]||null;material.roughnessMap=record.maps[1]||null;material.normalMap=record.maps[2]||null;material.normalScale.set(.22,.22);material.needsUpdate=true;
     }
     material.bumpScale=kind==='oak'||kind==='walnut'?.0015:kind==='fabric'?.0015:kind==='paint'?.0004:kind==='brushed'?.0003:.0006;
@@ -93,5 +108,5 @@ export function createFinishLibrary(THREE,renderer) {
       decorate(m,{mode:'original',repeatX:m.map?.repeat.x||1,repeatY:m.map?.repeat.y||1,rotation:0},key);
     }
   }
-  return {get,decorate,dispose,initialize,preload};
+  return {get,ensure,decorate,dispose,initialize,preload};
 }

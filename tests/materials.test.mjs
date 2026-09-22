@@ -39,3 +39,14 @@ test('registry stable IDs and slot-specific material assignment',()=>{
  const a=buildSurfaceRegistry(scene,{wood},[['wood']]),b=buildSurfaceRegistry(scene,{wood},[['wood']]);assert.deepEqual([...a.registry.keys()],[...b.registry.keys()]);
  const clone=wood.clone();assignSurfaceMaterial([...a.registry.values()][0],clone);assert.equal(mesh.material[0],clone);assert.equal(mesh.material[1],wood);
 });
+
+test('scan loading shares in-flight work, rejects incomplete maps, and can retry',async()=>{
+ let fail=true,calls=0,disposed=0;
+ class Loader{async loadAsync(url){calls++;if(fail&&url.includes('normal'))throw Error('offline');const t=new THREE.Texture();t.dispose=()=>disposed++;return t;}}
+ const library=createFinishLibrary({...THREE,TextureLoader:Loader},{capabilities:{getMaxAnisotropy:()=>4}});
+ const first=await Promise.allSettled([library.ensure('terrazzo'),library.ensure('terrazzo')]);
+ assert(first.every(r=>r.status==='rejected'));assert.equal(calls,3);assert.equal(disposed,2);
+ fail=false;const [a,b]=await Promise.all([library.ensure('terrazzo'),library.ensure('terrazzo')]);
+ assert.equal(calls,6);assert.equal(a,b);assert(a.normal);assert.equal(a.map.colorSpace,THREE.SRGBColorSpace);assert.equal(a.normal.colorSpace,THREE.NoColorSpace);
+ assert.equal(await library.ensure('terrazzo'),a);assert.equal(calls,6);
+});

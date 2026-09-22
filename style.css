@@ -24,3 +24,12 @@ canvas.material-picking{cursor:crosshair}
 
 .quality-control{position:absolute;z-index:5;left:24px;bottom:112px;display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid #d4ddd3;border-radius:7px;background:#fbfcf8ee;box-shadow:0 4px 18px #243d3210;font-size:11px;color:#647567}.quality-control select{font:inherit;color:#294e3b;border:0;background:transparent;cursor:pointer;font-weight:600}.quality-control span{color:#839083;font-size:10px}.quality-control select:focus-visible{outline:2px solid #a97648}
 @media(max-width:740px){.quality-control{left:13px;bottom:101px;padding:8px;gap:6px}.quality-control span{display:none}}
+
+.material-library{margin-top:12px;font-size:12px}.material-library summary{cursor:pointer;padding:10px 0;color:#365e49}
+#material-swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}#material-swatches button{padding:4px;border:1px solid #d3dccf;border-radius:6px;background:#fff;min-width:0}#material-swatches button[aria-pressed=true]{border:2px solid #a97648;background:#f8ecd9}#material-swatches img{width:100%;height:62px;object-fit:cover;border-radius:3px}#material-swatches span{display:block;font-size:10px;padding:5px 0}#material-source a{color:#456951}
+
+#lighting-panel{position:absolute;z-index:13;left:24px;top:126px;bottom:164px;width:290px;overflow:auto;padding:18px;background:#fbfcf8f5;border:1px solid #ced9ce;border-radius:12px;box-shadow:0 12px 40px #213b3426;backdrop-filter:blur(12px)}
+#lighting-panel label,#lighting-panel legend{font-size:12px}#lighting-panel select{display:block;width:100%;padding:9px;margin:8px 0 13px;font:inherit;font-size:13px;color:#294e3b;border:1px solid #ccd7cd;border-radius:5px;background:white}.lighting-check{display:flex;align-items:center;gap:8px;margin:10px 0}.lighting-check input{accent-color:#456951}#lighting-rooms{border:1px solid #d5dfd1;border-radius:6px;margin:15px 0;padding:6px 12px}#lighting-rooms:disabled{opacity:.5}#lighting-status{font-size:11px;color:#40644b}#lighting-drawing{padding:10px;background:#e8eee6;border-radius:5px;font-size:12px}
+@media(max-width:740px){#lighting-panel{left:0;right:0;top:auto;bottom:0;width:100%;height:49%;min-height:240px;border-radius:12px 12px 0 0;padding:14px 18px}#lighting-rooms{display:grid;grid-template-columns:1fr 1fr}.lighting-check{margin:7px 0}}
+
+.night-scene .scene-heading h2{color:#f6f4e9}.night-scene .scene-heading .eyebrow,.night-scene .scene-heading p,.night-scene .interaction-hint,.night-scene .scale-note{color:#e5dfcd}

@@ -1,0 +1,164 @@
+[
+  {
+    "preset": "walnut-natural",
+    "asset": "black_walnut_veneer_01",
+    "slot": "color",
+    "file": "walnut-natural-color.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_01/black_walnut_veneer_01_diff_1k.jpg",
+    "md5": "ab8f92fde28797a8cb68f53e77249e62",
+    "size": 592588
+  },
+  {
+    "preset": "walnut-natural",
+    "asset": "black_walnut_veneer_01",
+    "slot": "normal",
+    "file": "walnut-natural-normal.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_01/black_walnut_veneer_01_nor_gl_1k.jpg",
+    "md5": "d69b5e919068c013ec1a4d4aa8ef52b7",
+    "size": 403301
+  },
+  {
+    "preset": "walnut-natural",
+    "asset": "black_walnut_veneer_01",
+    "slot": "roughness",
+    "file": "walnut-natural-roughness.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_01/black_walnut_veneer_01_rough_1k.jpg",
+    "md5": "3c70a389d27c4799a3b6df9a4e5cb104",
+    "size": 724300
+  },
+  {
+    "preset": "marble-beige",
+    "asset": "marble_01",
+    "slot": "color",
+    "file": "marble-beige-color.jpg",
+    "size": 305029,
+    "md5": "04325ced5018eb8a2e598a4ef69cb176",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_diff_1k.jpg"
+  },
+  {
+    "preset": "marble-beige",
+    "asset": "marble_01",
+    "slot": "normal",
+    "file": "marble-beige-normal.jpg",
+    "size": 110230,
+    "md5": "fa073d722cde733c1bd6cc6e8897c8e3",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_nor_gl_1k.jpg"
+  },
+  {
+    "preset": "marble-beige",
+    "asset": "marble_01",
+    "slot": "roughness",
+    "file": "marble-beige-roughness.jpg",
+    "size": 91848,
+    "md5": "59cef1be1b7376c9d0dcc7a64adf7882",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_rough_1k.jpg"
+  },
+  {
+    "preset": "terrazzo",
+    "asset": "terrazzo_tiles",
+    "slot": "color",
+    "file": "terrazzo-color.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_diff_1k.jpg",
+    "md5": "12c27a579c2ed49de854b8a86e33647b",
+    "size": 1166107
+  },
+  {
+    "preset": "terrazzo",
+    "asset": "terrazzo_tiles",
+    "slot": "normal",
+    "file": "terrazzo-normal.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_nor_gl_1k.jpg",
+    "md5": "a5f6d05f27db4151227535bdbc82c048",
+    "size": 77954
+  },
+  {
+    "preset": "terrazzo",
+    "asset": "terrazzo_tiles",
+    "slot": "roughness",
+    "file": "terrazzo-roughness.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_rough_1k.jpg",
+    "md5": "e34bfd2f4fee1b2b9f310a71588aad17",
+    "size": 459022
+  },
+  {
+    "preset": "plaster-fine",
+    "asset": "white_stucco",
+    "slot": "color",
+    "file": "plaster-fine-color.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_diff_1k.jpg",
+    "md5": "34b66656dbf2a90eec29306deb1a20d0",
+    "size": 557550
+  },
+  {
+    "preset": "plaster-fine",
+    "asset": "white_stucco",
+    "slot": "normal",
+    "file": "plaster-fine-normal.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_nor_gl_1k.jpg",
+    "md5": "3e70f3be77f582fd41a9a08c8e8a6e66",
+    "size": 932038
+  },
+  {
+    "preset": "plaster-fine",
+    "asset": "white_stucco",
+    "slot": "roughness",
+    "file": "plaster-fine-roughness.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_rough_1k.jpg",
+    "md5": "bf6289112520870861b21620fdf9c4d1",
+    "size": 347861
+  },
+  {
+    "preset": "fabric-check",
+    "asset": "fabric_pattern_05",
+    "slot": "color",
+    "file": "fabric-check-color.jpg",
+    "size": 797220,
+    "md5": "bb9ea242bac4c41493de34ba251870c2",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_05/fabric_pattern_05_col_01_1k.jpg"
+  },
+  {
+    "preset": "fabric-check",
+    "asset": "fabric_pattern_05",
+    "slot": "normal",
+    "file": "fabric-check-normal.jpg",
+    "size": 903085,
+    "md5": "9cf8fe9343eb29021eb0bf9faf174e0c",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_05/fabric_pattern_05_nor_gl_1k.jpg"
+  },
+  {
+    "preset": "fabric-check",
+    "asset": "fabric_pattern_05",
+    "slot": "roughness",
+    "file": "fabric-check-roughness.jpg",
+    "size": 438194,
+    "md5": "94f4531e69392685b4fe74fba3a2da48",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_05/fabric_pattern_05_rough_1k.jpg"
+  },
+  {
+    "preset": "oak",
+    "asset": "oak_veneer_01",
+    "slot": "color",
+    "file": "oak-color.jpg",
+    "size": 641756,
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_diff_1k.jpg",
+    "md5": "39a99df4e328d62d74f3122722a64a95"
+  },
+  {
+    "preset": "oak",
+    "asset": "oak_veneer_01",
+    "slot": "normal",
+    "file": "oak-normal.jpg",
+    "size": 484844,
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_nor_gl_1k.jpg",
+    "md5": "d05406f5fdaf51f0d7b115b35d9af1b7"
+  },
+  {
+    "preset": "oak",
+    "asset": "oak_veneer_01",
+    "slot": "roughness",
+    "file": "oak-roughness.jpg",
+    "size": 865194,
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_rough_1k.jpg",
+    "md5": "a19b44176a078b9ae93314133848c9aa"
+  }
+]

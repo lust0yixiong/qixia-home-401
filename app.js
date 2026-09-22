@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { initMaterialEditor } from './material-editor.js?v=20';
-import {createFinishLibrary} from './surface-finishes.js?v=20';
-import {softenFurnitureEdges} from './surface-edges.js?v=20';
-import {createRenderQuality} from './render-quality.js?v=20';
+import {createLightingDesign} from './lighting-design.js?v=21';
+import { initMaterialEditor } from './material-editor.js?v=21';
+import {createFinishLibrary} from './surface-finishes.js?v=21';
+import {softenFurnitureEdges} from './surface-edges.js?v=21';
+import {createRenderQuality} from './render-quality.js?v=21';
 import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
@@ -20,14 +21,14 @@ let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,re
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
 gallery.forEach(([n,title],i)=>{let b=document.createElement('button');b.setAttribute('aria-label',title);b.innerHTML=`<img src="./assets/interior-${n}.jpg" alt="${title}" loading="lazy">`;b.onclick=()=>showImage(i);$('#thumbnails').append(b)});
 function showImage(i){galleryIndex=(i+gallery.length)%gallery.length;const[n,title]=gallery[galleryIndex];$('#gallery-image').src=`./assets/interior-${n}.jpg`;$('#gallery-image').alt=title;$('#gallery-title').textContent=title;$('#gallery-counter').textContent=`${String(galleryIndex+1).padStart(2,'0')} / 09`;[...$('#thumbnails').children].forEach((b,i)=>b.classList.toggle('active',i===galleryIndex))}showImage(1);$('#prev-image').onclick=()=>showImage(galleryIndex-1);$('#next-image').onclick=()=>showImage(galleryIndex+1);
 const drawings=[
- ['plan','P.01 · 平面布置'],['dimensions','P.12 · 家具尺寸'],['flooring','P.08 · 地面铺贴'],
+ ['plan','P.01 · 平面布置'],['lighting-ceiling','P.04 · 天花布置'],['lighting-dimensions','P.07 · 灯位尺寸'],['lighting-switches','P.09 · 开关连线'],['dimensions','P.12 · 家具尺寸'],['flooring','P.08 · 地面铺贴'],
  ['el-01','EL.01 · 灶台与活动区柜体'],['el-02','EL.02 · 玄关与餐厅'],['el-03','EL.03 · 洗漱区与次卧'],['el-04','EL.04 · 西侧柜体与窗户'],['el-05','EL.05 · 移门与主卧衣柜'],['el-06','EL.06 · 主卧床头'],['el-07','EL.07 · 卫浴与洗衣'],['el-08','EL.08 · 岛台与餐桌']
 ];
 for(const [value,title] of drawings){const option=document.createElement('option');option.value=value;option.textContent=title;$('#drawing-select').append(option)}
@@ -35,7 +36,7 @@ $('#drawing-select').onchange=()=>{const [value,title]=drawings.find(d=>d[0]===$
 $('#plan-zoom').onclick=()=>{$('.plan-stage').classList.toggle('enlarged');$('#plan-zoom').textContent=$('.plan-stage').classList.contains('enlarged')?'适应窗口':'放大图纸'};
 const X=x=>(x-855)/85.6,Z=z=>(z-610)/85.6;
 function mat(c,rough=.75,metal=0){return new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:metal})}
-let M,finishLibrary,renderQuality;
+let M,finishLibrary,renderQuality,lightingDesign;
 function box(x,y,z,w,h,d,m,parent=scene){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
 function rect(x1,z1,x2,z2,y,h,m,parent=scene){return box(X((x1+x2)/2),y+h/2,Z((z1+z2)/2),(x2-x1)/85.6,h,(z2-z1)/85.6,m,parent)}
 function cyl(x,y,z,r,h,m,r2=r,parent=scene){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r2,h,32),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
@@ -121,7 +122,7 @@ let stone=mat('#fff');let wood=mat('#ffffff',.8);M={wall:mat('#f5f2e8'),trim:mat
 M.countertop=M.dark.clone();
 finishLibrary=createFinishLibrary(THREE,renderer);await finishLibrary.preload();finishLibrary.initialize(M);
 wallGroup=new THREE.Group();scene.add(wallGroup);openingGroup=new THREE.Group();scene.add(openingGroup);
-scene.add(new THREE.HemisphereLight('#f5f5ef','#aaa394',.65));let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
+const hemi=new THREE.HemisphereLight('#f5f5ef','#aaa394',.65);scene.add(hemi);let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
 box(0,-.37,0,200,.1,200,mat('#e9eeeb'));
 const stepZ=planZ(K.wallStepZ);
 const outline=[[340,945],[340,stepZ],[400,stepZ],[400,267],[1368,267],[1368,493],[1314,553],[1314,945]];let sh=new THREE.Shape();outline.forEach(([x,z],i)=>i?sh.lineTo(X(x),-Z(z)):sh.moveTo(X(x),-Z(z)));sh.closePath();let geom=new THREE.ExtrudeGeometry(sh,{depth:.23,bevelEnabled:false});geom.rotateX(-Math.PI/2);let floor=new THREE.Mesh(geom,[M.stone,mat('#bac5bc')]);floor.position.y=-.22;floor.receiveShadow=true;floor.castShadow=true;scene.add(floor);
@@ -437,14 +438,21 @@ outlet(CW.pierX+.15,1.14,CW.frontZ+.024,0,.172);
 for(let x of[I.x+.50,I.x+1.50])outlet(x,.54,barFront+.006,0,.172);
 // Mirror-cabinet power is behind the closed mirror, not an exposed socket on its face.
 for(let x of[1094,1296])outlet(X(x),.79,Z(277),0,.172,wallGroup);
-// Ceiling-free view retains selected light fittings as low-profile design cues.
-const led=new THREE.MeshStandardMaterial({color:'#f5d99f',emissive:'#f7c782',emissiveIntensity:.7});slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,led);slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,led);
-const kitchenGlow=new THREE.PointLight('#ffe1b6',3.5,1.8,2);kitchenGlow.position.set(CW.x+runW*.5,1.44,cookingBack+.28);scene.add(kitchenGlow);
-const vanityGlow=new THREE.PointLight('#ffe7c6',1.6,1.1,2);vanityGlow.position.set(vx+mirrorW*.5,.27,vz+.22);scene.add(vanityGlow);
+// EL.01 / EL.03 cabinet LEDs; the lighting controller follows P.04/P.09.
+const kitchenLed=new THREE.MeshStandardMaterial({color:'#fff0dc',emissive:'#ffddab',emissiveIntensity:0});
+const vanityLed=kitchenLed.clone();
+slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,kitchenLed);
+slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,vanityLed);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
 renderQuality=createRenderQuality({renderer,scene,camera,sun});
-initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onOpen:()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
+initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onOpen:()=>{lightingDesign?.close();controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
 softenFurnitureEdges(scene,M);
+// Added after the registry so ceiling fittings do not intercept surface material picking.
+lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,extras:[
+ {id:'kitchen-under-cabinet',room:'kitchen',material:kitchenLed,position:[CW.x+runW*.5,1.51,cookingBack+.28],power:3.5},
+ {id:'vanity-under-cabinet',room:'bath',material:vanityLed,position:[vx+mirrorW*.5,.23,vz+.10],power:1.6},
+ {id:'vanity-mirror-led',room:'bath',material:mirrorLight,position:[vx+mirrorW*.5,1.79,mirrorFace-.025],power:2.5}
+]});
 wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
 }
 function moveCamera(r,immediate=false){if(!camera)return;let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
