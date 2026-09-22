@@ -1,11 +1,11 @@
 // Appearance reconstructed from the user's design renders, not recovered designer PBR files.
 export const REFERENCE_REVISION = 1;
 export const REFERENCE_FINISHES = [
-  {id:'ref-wood', name:'效果图 · 灰棕木饰面', file:'wood.png', base:'wood', roughness:.58, fallback:'oak'},
-  {id:'ref-floor', name:'效果图 · 暖灰石材地面', file:'floor.png', base:'stone', roughness:.72, fallback:'limestone'},
-  {id:'ref-countertop', name:'效果图 · 炭灰台面', file:'countertop.png', base:'countertop', roughness:.43, fallback:'slate'},
-  {id:'ref-green', name:'效果图 · 深绿釉面砖', file:'green.png', base:'green', roughness:.23, fallback:'paint'},
-  {id:'ref-vanity', name:'效果图 · 洗漱区细纹石材', file:'vanity.png', base:'vanityStone', roughness:.48, fallback:'limestone'}
+  {id:'ref-wood', name:'效果图 · 灰棕木饰面', file:'wood.jpg', base:'wood', roughness:.58, fallback:'oak'},
+  {id:'ref-floor', name:'效果图 · 暖灰石材地面', file:'floor.jpg', base:'stone', roughness:.72, fallback:'limestone'},
+  {id:'ref-countertop', name:'效果图 · 炭灰台面', file:'countertop.jpg', base:'countertop', roughness:.43, fallback:'slate'},
+  {id:'ref-green', name:'效果图 · 深绿釉面砖', file:'green.jpg', base:'green', roughness:.23, fallback:'paint'},
+  {id:'ref-vanity', name:'效果图 · 洗漱区细纹石材', file:'vanity.jpg', base:'vanityStone', roughness:.48, fallback:'limestone'}
 ].map(p=>({...p,category:'reference',color:'#ffffff',metalness:0,reference:true}));
 export const REFERENCE_PALETTE = {
   cream:'#dcd6c9', wall:'#ece7dd', linen:'#d0c8b9', duvet:'#ece8df', pink:'#b9807c',

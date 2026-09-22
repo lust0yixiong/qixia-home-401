@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {createLightingDesign} from './lighting-design.js?v=21';
-import { initMaterialEditor } from './material-editor.js?v=24';
-import {createFinishLibrary} from './surface-finishes.js?v=24';
+import { initMaterialEditor } from './material-editor.js?v=25';
+import {createFinishLibrary} from './surface-finishes.js?v=25';
 import {softenFurnitureEdges} from './surface-edges.js?v=21';
 import {createRenderQuality} from './render-quality.js?v=21';
 import { OrbitControls } from './assets/OrbitControls.js';

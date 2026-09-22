@@ -1,6 +1,6 @@
-import {FINISHES} from './surface-finishes.js?v=24';
-import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=24';
-import {REFERENCE_REVISION, migrateReferenceDefaults} from './reference-materials.js?v=24';
+import {FINISHES} from './surface-finishes.js?v=25';
+import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=25';
+import {REFERENCE_REVISION, migrateReferenceDefaults} from './reference-materials.js?v=25';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
   ['stone', '地面石材'], ['wall', '墙面'], ['green', '厨房墙砖'], ['wetTile', '卫浴墙面'], ['vanityStone', '洗漱区石材挡水墙'],

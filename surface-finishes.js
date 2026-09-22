@@ -1,4 +1,4 @@
-import {REFERENCE_FINISHES, REFERENCE_PALETTE} from './reference-materials.js?v=24';
+import {REFERENCE_FINISHES, REFERENCE_PALETTE} from './reference-materials.js?v=25';
 // Bundled CC0 oak scans plus locally generated seamless PBR surfaces.
 export const FINISHES = [
   ...REFERENCE_FINISHES,
