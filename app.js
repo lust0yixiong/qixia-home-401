@@ -8,21 +8,23 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';
 const $=s=>document.querySelector(s);
 const rooms=[
 {id:'all',name:'全屋鸟瞰',en:'OVERVIEW',desc:'餐厨一体与多功能活动区相连，双卧室和独立卫浴分区位于内侧。',facts:['双卧室','开放餐厨','干湿分区'],x:850,z:600,dist:22},
-{id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，距岛台净宽 1360 毫米。',facts:['西柜 600 × 2240','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
+{id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，距岛台净宽 1360 毫米。',facts:['骊住 3D 水槽 830 × 560','西柜 600 × 2240','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
 {id:'master',name:'主卧室',en:'MASTER BEDROOM',desc:'双人床与转角衣柜相对，窗侧保留通道。暖木色与浅色织物延续原设计。',facts:['床 1800 × 2000','衣柜进深约 600'],x:1150,z:410,dist:8.0},
 {id:'second',name:'次卧室',en:'SECOND BEDROOM',desc:'上下床沿内侧布置，南侧整面衣柜收纳。粉色床架参考原设计效果图。',facts:['衣柜 2050 × 510','柜门朝向卧室'],x:555,z:410,dist:6.7},
 {id:'bath',name:'卫浴与洗衣',en:'BATH & LAUNDRY',desc:'卫生间、洗衣房和淋浴区依次分开，外置洗漱台让日常使用更从容。',facts:['洗烘位 650 × 650','洗漱台 900 + 580 · 端部 100','抽拉高柜：面宽 340 · 进深 680'],x:855,z:425,dist:8.8},
 {id:'flex',name:'多功能活动区',en:'FLEXIBLE LIVING',desc:'活动区按图纸保留开放地面，配整墙收纳与靠南墙收拢的四扇折叠移门，向右侧阳台延伸。',facts:['衣柜 3400 × 600','8百库 800 × 800 · 过道侧开门','四扇折叠移门'],x:1130,z:765,dist:8.7}
 ];
 let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,renderer,scene,camera,controls,flight=null,wallGroup,openingGroup,labelItems=[],frame=0;
+let islandSink=null;
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
@@ -113,11 +115,13 @@ function stool(x,z){let xx=X(x),zz=Z(z);cyl(xx,.72,zz,.21,.09,M.wood);for(let dx
 function chair(x,z,rotation=0){const g=new THREE.Group();scene.add(g);g.position.set(X(x),0,Z(z));g.rotation.y=rotation;box(0,.46,0,.45,.06,.44,M.wood,g);box(0,.79,-.20,.44,.55,.045,M.cream,g);for(let xx of[-.17,.17])for(let zz of[-.15,.15])box(xx,.23,zz,.032,.46,.032,M.darkwood,g)}
 function plant(x,z){let xx=X(x),zz=Z(z);cyl(xx,.22,zz,.22,.44,M.pot,.16);rod([xx,.43,zz],[xx,1.65,zz],.018,M.darkwood);for(let i=0;i<13;i++){let a=i*2.4,h=.7+i*.075,end=[xx+Math.cos(a)*.34,h+.18,zz+Math.sin(a)*.34];rod([xx,h,zz],end,.009,M.leaf);let l=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),M.leaf);l.scale.set(.15,.038,.28);l.position.set(...end);l.rotation.set(.35,a,.15);l.castShadow=true;scene.add(l)}}
 function sink(x,z,top=.95,w=.57,d=.42,rotation=0){
+ const before=scene.children.length;
  const xx=X(x),zz=Z(z),sin=Math.sin(rotation),cos=Math.cos(rotation),point=(u,y,v)=>[xx+u*cos+v*sin,y,zz-u*sin+v*cos];
  rounded(xx,top+.005,zz,w,.018,d,.035,M.chrome);
  rounded(xx,top+.016,zz,w-.06,.02,d-.06,.028,M.sink);
  rod(point(w*.38,top+.04,-d/2),point(w*.38,top+.25,-d/2),.016,M.chrome);
  rod(point(w*.38,top+.25,-d/2),point(w*.12,top+.25,-d/2),.016,M.chrome);
+ return scene.children.slice(before);
 }
 async function build(){scene=new THREE.Scene();scene.background=new THREE.Color('#e9eeeb');scene.fog=new THREE.Fog('#e9eeeb',37,75);camera=new THREE.PerspectiveCamera(38,1,.05,150);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.setClearColor('#e9eeeb');$('#canvas-wrap').prepend(renderer.domElement);renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','可交互三维户型。拖动旋转，滚轮缩放，方向键平移。');controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.maxPolarAngle=Math.PI/2-.035;controls.minDistance=2;controls.maxDistance=43;controls.target.set(0,.2,0);controls.autoRotateSpeed=.55;controls.listenToKeyEvents(renderer.domElement);controls.addEventListener('start',()=>{flight=null});renderer.domElement.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){zoom(.85);e.preventDefault()}if(e.key==='-'){zoom(1.15);e.preventDefault()}});
 let stone=mat('#fff');let wood=mat('#ffffff',.8);M={wall:mat('#f5f2e8'),trim:mat('#b8b4a7',.4),stone,wood,cream:mat('#e7e3d7'),dark:mat('#343936',.45),darkwood:mat('#745b43'),linen:mat('#ddd6c3'),duvet:mat('#f5f1e8'),headboard:mat('#77786c'),wetTile:mat('#d7d9d1'),tileStrip:mat('#dadbd2'),mirror:mat('#cadbdc',.20,.25),frosted:new THREE.MeshPhysicalMaterial({color:'#e8e6dc',transparent:true,opacity:.76,roughness:.85,side:THREE.DoubleSide,depthWrite:false}),teaGlass:new THREE.MeshPhysicalMaterial({color:'#796351',transparent:true,opacity:.60,roughness:.16,metalness:.18,depthWrite:false}),white:mat('#faf8f1'),windowFrame:mat('#ffffff',.35,.08),thread:mat('#a6a899'),pink:mat('#c47f8b'),green:mat('#205b38',.25),chrome:mat('#bcc9c8',.22,.85),metal:mat('#626e68',.35,.7),brass:mat('#a88958',.4,.6),sink:mat('#656e69',.32,.55),glass:new THREE.MeshPhysicalMaterial({color:'#b3ced0',transparent:true,opacity:.17,roughness:.12,side:THREE.DoubleSide,depthWrite:false}),leaf:mat('#46633d'),pot:mat('#b6a58b'),rug:mat('#b6b5a6')};
@@ -246,8 +250,8 @@ sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
 // Recess the actual cabinet volume as well as its door skins; keep the 2000 x 1100 outer top.
 const barFront=I.z+I.depth-D.island.seatingRecess,stoneEnd=D.island.endPanel;
 const barDoorThickness=.018,barInnerWidth=I.width-2*stoneEnd;
-slab(I.x+stoneEnd,I.z,barInnerWidth,barFront-I.z-barDoorThickness,.04,.85,M.cream);
-slab(I.x,I.z,I.width,I.depth,D.island.top-D.island.topThickness,D.island.topThickness,M.countertop);
+const islandBody=slab(I.x+stoneEnd,I.z,barInnerWidth,barFront-I.z-barDoorThickness,.04,.85,M.cream);
+const islandTop=slab(I.x,I.z,I.width,I.depth,D.island.top-D.island.topThickness,D.island.topThickness,M.countertop);
 for(let x of[I.x,I.x+I.width-stoneEnd])slab(x,I.z,stoneEnd,I.depth,0,.89,M.countertop);
 for(let n=0;n<2;n++)slab(I.x+stoneEnd+.007+n*barInnerWidth/2,barFront-barDoorThickness,barInnerWidth/2-.014,barDoorThickness,.06,.81,M.wood);
 // Working side: drawers, dishwasher, sink cabinet, as the island plan.
@@ -255,7 +259,7 @@ for(let y of[.08,.345,.61])slab(I.x+.008,I.z-.018,.484,.018,y,.25,M.cream);
 slab(I.x+.508,I.z-.02,.584,.022,.06,.815,M.cream);
 slab(I.x+.508,I.z-.043,.584,.018,.79,.07,M.metal);
 slab(I.x+1.108,I.z-.018,.884,.018,.06,.815,M.cream);
-sink(planX(I.x+1.52),planZ(I.z+.34),D.island.top,.80,.52,Math.PI);
+const legacyIslandSink=sink(planX(I.x+1.52),planZ(I.z+.34),D.island.top,.80,.52,Math.PI);
 slab(T.x,T.z,T.width,T.depth,D.table.top-D.table.topThickness,D.table.topThickness,M.countertop);
 slab(T.x+T.width-.065,T.z,.065,T.depth,0,.74,M.cream);
 stool(planX(I.x+.55),planZ(I.z+I.depth+.30));stool(planX(I.x+1.32),planZ(I.z+I.depth+.30));
@@ -469,6 +473,7 @@ initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onChan
  kitchenCheek.geometry.dispose();kitchenCheek.geometry=geometry;
 }
 correctFlexStorage({THREE,F,right:fxRight,back:fz,wardrobe:flexWardrobe,service:flexStorage,partition:flexPartition});
+islandSink=installIslandSink({THREE,scene,island:I,top:islandTop,body:islandBody,legacy:legacyIslandSink,materials:M});
 softenFurnitureEdges(scene,M);
 // Added after the registry so ceiling fittings do not intercept surface material picking.
 lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>renderQuality.invalidate(),extras:[
@@ -512,6 +517,8 @@ $('#pullout-toggle').onclick=()=>{
 $('#storage-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();const F=D.flexWardrobe;moveCamera({id:'storage-detail',x:1304-(F.width+F.serviceWidth*.5)*85.6,z:586+(F.depth-F.serviceDepth*.5)*85.6,dist:4.3,aimY:1.15,fit:false,direction:[-.95,1.2,1.0]})};
 $('#vanity-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'vanity-detail',x:790,z:527,dist:3.7,aimY:1.0,fit:false,direction:[.4,1.4,-1]})};
 $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'kitchen-detail',x:480,z:565,dist:4.2,aimY:1.1,fit:false,direction:[.28,.34,1]})};
+$('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
+$('#sink-accessories').onclick=()=>{if(!islandSink)return;islandSink.accessories.visible=!islandSink.accessories.visible;$('#sink-accessories').setAttribute('aria-pressed',String(islandSink.accessories.visible));$('#sink-accessories').textContent=islandSink.accessories.visible?'移开水槽配件':'放回水槽配件';renderQuality.invalidate();};
 $('#walls').onclick=()=>{renderQuality.invalidate();fullWalls=!fullWalls;wallGroup.scale.y=fullWalls?1:.25;openingGroup.visible=fullWalls;$('#walls').setAttribute('aria-pressed',String(fullWalls));$('#walls').textContent=fullWalls?'降低墙体':'完整墙体'};
 $('#labels-toggle').onclick=()=>{showLabels=!showLabels;$('#labels-toggle').setAttribute('aria-pressed',String(showLabels))};$('#rotate').onclick=()=>{controls.autoRotate=!controls.autoRotate;$('#rotate').setAttribute('aria-pressed',String(controls.autoRotate));$('#rotate').textContent=controls.autoRotate?'停止旋转':'自动旋转'};$('#top').onclick=()=>{topMode=true;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#orbit').onclick=()=>{topMode=false;updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#reset').onclick=()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';selectRoom('all')};function zoom(f){if(!camera)return;flight=null;let offset=camera.position.clone().sub(controls.target).multiplyScalar(f);offset.clampLength(controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset);controls.update()}$('#zoom-in').onclick=()=>zoom(.85);$('#zoom-out').onclick=()=>zoom(1.15);
 selectRoom('all',false);build().catch(err=>{console.error(err);$('#loading').textContent='三维画面暂时无法加载，请使用支持 WebGL 的浏览器。仍可查看设计效果图和平面图。';document.querySelectorAll('.scene-tools button,.view-controls button,.zoom-controls button').forEach(b=>b.disabled=true)});
