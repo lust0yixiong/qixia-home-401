@@ -14,6 +14,6 @@ export const interiorLayout = {
   // Pull-out face width = rearSideDepth 340; insertion depth = sideBay + endStorage 680.
   // Pull-out travel and shelf details are illustrative, not documented dimensions.
   vanity: { basinBay: .90, sideBay: .58, depth: .45, top: .80, mirrorBottom: 1.00, mirrorHeight: .80, upperHeight: .55, endStorage: .10, rearSideDepth: .34, rearPierDepth: .24, pulloutBase: .08, pulloutTop: 2.35, pulloutTravel: .55, frontPlanZ: 502 }, // P.12 / EL.03: 200 + 800 + 550 above the 800 mm counter
-  flexWardrobe: { width: 3.40, depth: .60, height: 2.65, serviceWidth: .80, serviceDepth: .80 }, // P.12 / EL.01
+  flexWardrobe: { width: 3.40, depth: .60, height: 2.65, serviceWidth: .80, serviceDepth: .80, serviceNotchWidth: .20, serviceNotchDepth: .20, serviceDoorWidth: .68 }, // P.12 / EL.01; notch and clear leaf widths traced from P.01, not labelled
   flooring: { main: [.75, 1.50], second: [1.50, .75], wet: [.30, .30], balcony: [.40, .40] }, // P.08
 };
