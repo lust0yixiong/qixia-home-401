@@ -25,4 +25,7 @@ test('bowl belongs to the existing countertop material slot, preserving edits an
  const replacement=new THREE.MeshStandardMaterial({color:'#ad9275'});f.top.material=replacement;assert.equal(f.top.material,replacement);
  f.scene.traverse(o=>{if(o.isMesh&&o.visible){assert(o.geometry.attributes.normal);assert(o.geometry.attributes.uv);assert([...o.geometry.attributes.position.array].every(Number.isFinite));}});
  assert(f.root.getObjectByName('round-sink-arched-tap'));
+ const tap=f.root.getObjectByName('round-sink-tap-base');assert.equal(tap.position.z,.14);
+ const tip=f.root.getObjectByName('round-sink-arched-tap').geometry.parameters.path.getPoint(1);
+ assert(Math.hypot(tip.x,tip.z)<S.diameter/2,'offset faucet still discharges into the bowl');
 });

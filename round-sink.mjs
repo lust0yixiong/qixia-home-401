@@ -1,5 +1,5 @@
 // User-confirmed visible diameter. Depth and faucet are reference-image approximations.
-export const roundSinkSpec={diameter:.320,depth:.168,offsetX:.29,offsetZ:.93};
+export const roundSinkSpec={diameter:.320,depth:.168,offsetX:.29,offsetZ:.93,faucetOffsetZ:.14};
 export function installRoundSink({THREE,scene,top,body,legacy,metal}){
  const S=roundSinkSpec,{width,height,depth}=top.geometry.parameters;
  const cx=S.offsetX-width/2,cz=S.offsetZ-depth/2,level=height/2;
@@ -30,10 +30,11 @@ export function installRoundSink({THREE,scene,top,body,legacy,metal}){
  const mesh=(g,name)=>{const o=new THREE.Mesh(g,metal);o.name=name;o.castShadow=true;o.receiveShadow=true;root.add(o);return o;};
  const drain=mesh(new THREE.CylinderGeometry(.036,.036,.003,64),'round-sink-drain');drain.position.y=-S.depth+.003;
  const collar=mesh(new THREE.TorusGeometry(.038,.0015,8,64),'round-sink-drain-ring');collar.rotation.x=Math.PI/2;collar.position.y=-S.depth+.002;
- // Mount beside the wall (negative X), with the curved spout over the basin.
- const tap=mesh(new THREE.CylinderGeometry(.025,.026,.12,32),'round-sink-tap-base');tap.position.set(-.218,.06,0);
- const curve=new THREE.CatmullRomCurve3([[-.218,.115,0],[-.218,.29,0],[-.18,.335,0],[-.10,.30,0],[-.035,.22,0]].map(p=>new THREE.Vector3(...p)));
+ // Offset along the wall instead of aligning the mount with the basin centre;
+ // the arched spout turns diagonally back into the bowl.
+ const tap=mesh(new THREE.CylinderGeometry(.025,.026,.12,32),'round-sink-tap-base');tap.position.set(-.218,.06,S.faucetOffsetZ);
+ const curve=new THREE.CatmullRomCurve3([[-.218,.115,S.faucetOffsetZ],[-.218,.29,S.faucetOffsetZ],[-.18,.335,.12],[-.10,.30,.07],[-.035,.22,.025]].map(p=>new THREE.Vector3(...p)));
  mesh(new THREE.TubeGeometry(curve,48,.010,16,false),'round-sink-arched-tap');
- const lever=mesh(new THREE.CylinderGeometry(.004,.004,.065,12),'round-sink-tap-lever');lever.rotation.x=Math.PI/2;lever.position.set(-.218,.115,.037);
+ const lever=mesh(new THREE.CylinderGeometry(.004,.004,.065,12),'round-sink-tap-lever');lever.rotation.x=Math.PI/2;lever.position.set(-.218,.115,S.faucetOffsetZ+.037);
  return {root,spec:S};
 }
