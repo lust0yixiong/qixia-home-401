@@ -8,13 +8,14 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {recessWestCabinet} from './west-cabinet.mjs?v=34';
 import {installRoundSink} from './round-sink.mjs?v=32';
 import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';
 const $=s=>document.querySelector(s);
 const rooms=[
 {id:'all',name:'全屋鸟瞰',en:'OVERVIEW',desc:'餐厨一体与多功能活动区相连，双卧室和独立卫浴分区位于内侧。',facts:['双卧室','开放餐厨','干湿分区'],x:850,z:600,dist:22},
-{id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，距岛台净宽 1360 毫米。',facts:['骊住 3D 水槽 830 × 560','西柜 600 × 2240','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
+{id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，台面距岛台净宽 1360 毫米，下柜内退 200 毫米。',facts:['骊住 3D 水槽 830 × 560','西柜深 400 · 台面深 600','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
 {id:'master',name:'主卧室',en:'MASTER BEDROOM',desc:'双人床与转角衣柜相对，窗侧保留通道。暖木色与浅色织物延续原设计。',facts:['床 1800 × 2000','衣柜进深约 600'],x:1150,z:410,dist:8.0},
 {id:'second',name:'次卧室',en:'SECOND BEDROOM',desc:'上下床沿内侧布置，南侧整面衣柜收纳。粉色床架参考原设计效果图。',facts:['衣柜 2050 × 510','柜门朝向卧室'],x:555,z:410,dist:6.7},
 {id:'bath',name:'卫浴与洗衣',en:'BATH & LAUNDRY',desc:'卫生间、洗衣房和淋浴区依次分开，外置洗漱台让日常使用更从容。',facts:['洗烘位 650 × 650','洗漱台 900 + 580 · 端部 100','抽拉高柜：面宽 340 · 进深 680'],x:855,z:425,dist:8.8},
@@ -244,7 +245,8 @@ for(let i=0;i<gasLevels.length-1;i++){
 }
 box(GC.x+GC.width-.055,1.72,gasFront+.023,.015,.105,.012,M.brass,gasGroup);
 // Cabinet fronts face the aisle. The small basin belongs on this south run.
-let segmentStart=L.z;for(let d of[.60,.65,.55,.44]){slab(L.x+L.width-.008,segmentStart+.007,.008,d-.014,.10,.78,M.cream);slab(L.x+L.width,segmentStart+.045,.016,.17,.65,.014,M.brass);segmentStart+=d}
+const westCounterFronts=[],westCounterHandles=[];
+let segmentStart=L.z;for(let d of[.60,.65,.55,.44]){westCounterFronts.push(slab(L.x+L.width-.008,segmentStart+.007,.008,d-.014,.10,.78,M.cream));westCounterHandles.push(slab(L.x+L.width,segmentStart+.045,.016,.17,.65,.014,M.brass));segmentStart+=d}
 const legacyWestSink=sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
 // EL.08: island 1010 high, 120 mm stone fascia; table 800 high, 60 mm top.
 // Rendering 03: the bar-facing doors sit behind the stone overhang.
@@ -476,6 +478,7 @@ initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onChan
 correctFlexStorage({THREE,F,right:fxRight,back:fz,wardrobe:flexWardrobe,service:flexStorage,partition:flexPartition});
 islandSink=installIslandSink({THREE,scene,island:I,top:islandTop,body:islandBody,legacy:legacyIslandSink,materials:M});
 installRoundSink({THREE,scene,top:westCounterTop,body:westCounterBody,legacy:legacyWestSink,metal:M.chrome});
+recessWestCabinet({THREE,body:westCounterBody,fronts:westCounterFronts,handles:westCounterHandles,sink:{z:L.z+.93,top:D.westCounter.top}});
 softenFurnitureEdges(scene,M);
 // Added after the registry so ceiling fittings do not intercept surface material picking.
 lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>renderQuality.invalidate(),extras:[
