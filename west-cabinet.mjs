@@ -7,8 +7,9 @@ export function recessWestCabinet({THREE,body,fronts,handles,setback=westCabinet
  if(w<=t*2)throw new Error('Cabinet setback leaves no usable depth');
  // The fixed 320 mm bowl projects a little past the recessed fronts. Reserve a
  // discreet notch under the overhang instead of drawing the door through it.
- const clearance={z:sink.z,width:.24,bottom:sink.top-.19};
+ const clearance=sink?{z:sink.z,width:.24,bottom:sink.top-.19}:null;
  function notchedPanel(width,height,depth,worldY,worldZ){
+  if(!clearance)return new THREE.BoxGeometry(width,height,depth);
   const lo=Math.max(-depth/2,-(clearance.z-worldZ)-clearance.width/2);
   const hi=Math.min(depth/2,-(clearance.z-worldZ)+clearance.width/2);
   const bottom=Math.max(-height/2,clearance.bottom-worldY);
