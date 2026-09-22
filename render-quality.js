@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {runPhotoRequest,photoFailureMessage} from './photo-recovery.mjs?v=31';
 import {RoomEnvironment} from './assets/three-addons/environments/RoomEnvironment.js';
 import {EffectComposer} from './assets/three-addons/postprocessing/EffectComposer.js';
 import {RenderPass} from './assets/three-addons/postprocessing/RenderPass.js';
@@ -18,9 +19,9 @@ export function createRenderQuality({renderer,scene,camera,sun,getLighting,onPho
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
   let composer=null,ao=null,quality='smooth',width=1,height=1,failed=false;
-  let photo=null,loading=null,dirty=true,lastChange=0,lastCamera='',paused=false,lastStatus=0,requestId=0;
+  let photo=null,loading=null,dirty=true,lastChange=0,lastCamera='',paused=false,lastStatus=0,requestId=0,photoError=null,loadAttempt=0;
   const photoPanel=document.createElement('div');photoPanel.className='photo-controls hidden';
-  photoPanel.innerHTML=`<div class="photo-title">照片级渲染 <span>10 次光线反弹</span></div><label>室内取景 <select id="photo-view"><option value="kitchen">餐厨空间</option><option value="vanity">洗漱区镜面</option><option value="master">主卧室</option><option value="flex">多功能活动区</option></select></label><label>画面长边 <select id="photo-size"><option value="1280">1280 像素</option><option value="1920" selected>1920 像素</option><option value="3840">3840 像素 · 4K</option></select></label><label>采样目标 <select id="photo-samples"><option value="128">128 · 预览</option><option value="512" selected>512 · 精细</option><option value="2048">2048 · 展示</option></select></label><label>曝光 <input id="photo-exposure" type="range" min="0.5" max="3" value="1.8" step="0.05"></label><label><input type="checkbox" id="photo-denoise" checked>柔和降噪</label><div><button id="photo-pause">暂停采样</button><button id="photo-export" disabled>保存当前图片</button></div><p>拖动时快速预览，停下后重新采样。换材质或灯光后自动更新。</p><p id="photo-progress" role="status" aria-live="polite"></p>`;
+  photoPanel.innerHTML=`<div class="photo-title">照片级渲染 <span>10 次光线反弹</span></div><label>室内取景 <select id="photo-view"><option value="kitchen">餐厨空间</option><option value="vanity">洗漱区镜面</option><option value="master">主卧室</option><option value="flex">多功能活动区</option></select></label><label>画面长边 <select id="photo-size"><option value="1280">1280 像素</option><option value="1920" selected>1920 像素</option><option value="3840">3840 像素 · 4K</option></select></label><label>采样目标 <select id="photo-samples"><option value="128">128 · 预览</option><option value="512" selected>512 · 精细</option><option value="2048">2048 · 展示</option></select></label><label>曝光 <input id="photo-exposure" type="range" min="0.5" max="3" value="1.8" step="0.05"></label><label><input type="checkbox" id="photo-denoise" checked>柔和降噪</label><div><button id="photo-pause">暂停采样</button><button id="photo-export" disabled>保存当前图片</button></div><p>拖动时快速预览，停下后重新采样。换材质或灯光后自动更新。</p><p id="photo-progress" role="status" aria-live="polite"></p><div id="photo-recovery" class="hidden"><button id="photo-retry">重试照片级</button><button id="photo-fallback">使用高画质</button></div>`;
   document.querySelector('#scene-view').append(photoPanel);
   const exportDialog=document.createElement('dialog');exportDialog.className='photo-export-dialog';
   exportDialog.innerHTML='<button class="photo-export-close" aria-label="关闭图片预览">×</button><h2>渲染图片</h2><img id="photo-export-image" alt="当前三维场景的渲染图片"><p id="photo-export-info"></p><a id="photo-download">下载 PNG 图片</a>';
@@ -47,16 +48,32 @@ export function createRenderQuality({renderer,scene,camera,sun,getLighting,onPho
       exportDialog.showModal();
     },'image/png');
   };
+  field('retry').onclick=()=>startPhoto();
+  field('fallback').onclick=()=>setQuality('high');
   async function startPhoto(){
     const id=++requestId;
+    photoError=null;renderer.toneMappingExposure=Number(field('exposure').value);field('recovery').classList.add('hidden');field('pause').disabled=false;
     status.textContent='加载照片级引擎…';progress.textContent='首次使用需要准备模型与着色器。';
-    try{
-      if(!photo){loading ||= import('./photo-renderer.js?v=29');const module=await loading;if(id!==requestId||quality!=='photo')return;photo=module.createPhotoRenderer({renderer,scene,camera,getLighting});}
-      if(id!==requestId||quality!=='photo')return;
-      onPhotoView(field('view').value);resize(width,height);invalidate();
-    }catch(error){failPhoto(error);}
+    await runPhotoRequest({
+      load:()=>photo?null:(loading ||= import('./photo-renderer.js?v=31&attempt='+ ++loadAttempt)),
+      isCurrent:()=>id===requestId&&quality==='photo',
+      ready:module=>{
+        if(!photo)photo=module.createPhotoRenderer({renderer,scene,camera,getLighting});
+        paused=false;field('pause').textContent='暂停采样';
+        onPhotoView(field('view').value);resize(width,height);invalidate();
+      },
+      failed:failPhoto
+    });
   }
-  function failPhoto(error){console.error('照片级渲染无法启动',error);photo?.dispose();photo=null;loading=null;setQuality('high');status.textContent='照片级暂不可用，已恢复高画质';}
+  function failPhoto(error){
+    console.error('照片级渲染无法启动',error);requestId++;photoError=error;
+    const previous=photo;photo=null;loading=null;
+    try{previous?.dispose();}catch(cleanupError){console.warn('照片级资源清理失败',cleanupError);}
+    renderer.setRenderTarget(null);renderer.resetState();scene.overrideMaterial=null;
+    renderer.toneMappingExposure=1.05;
+    field('pause').disabled=true;field('export').disabled=true;field('recovery').classList.remove('hidden');
+    progress.textContent=photoFailureMessage(error);status.textContent='照片级暂停 · 实时预览';
+  }
 
   const supported=renderer.capabilities.isWebGL2&&!!renderer.extensions.get('EXT_color_buffer_float');
   const ui=document.createElement('div');ui.className='quality-control';ui.innerHTML='<label for="render-quality">画质</label><select id="render-quality"><option value="smooth">流畅</option><option value="high">高画质</option><option value="photo">照片级 · 路径追踪</option></select><span id="quality-status" role="status"></span>';
@@ -100,7 +117,7 @@ export function createRenderQuality({renderer,scene,camera,sun,getLighting,onPho
     resize,invalidate,
     render(){
       if(quality==='photo'){
-        if(!photo){renderer.render(scene,camera);return;}
+        if(photoError||!photo){renderer.render(scene,camera);return;}
         try{
           const now=performance.now(),signature=[...camera.matrixWorld.elements,...camera.projectionMatrix.elements].map(n=>n.toFixed(5)).join(',');
           if(signature!==lastCamera){lastCamera=signature;lastChange=now;photo.reset();field('export').disabled=true;}

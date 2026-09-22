@@ -3,7 +3,7 @@ import {createLightingDesign} from './lighting-design.js?v=29';
 import { initMaterialEditor } from './material-editor.js?v=29';
 import {createFinishLibrary} from './surface-finishes.js?v=25';
 import {softenFurnitureEdges} from './surface-edges.js?v=21';
-import {createRenderQuality} from './render-quality.js?v=29';
+import {createRenderQuality} from './render-quality.js?v=31';
 import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
