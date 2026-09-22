@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {createLightingDesign} from './lighting-design.js?v=21';
-import { initMaterialEditor } from './material-editor.js?v=25';
+import {createLightingDesign} from './lighting-design.js?v=29';
+import { initMaterialEditor } from './material-editor.js?v=29';
 import {createFinishLibrary} from './surface-finishes.js?v=25';
 import {softenFurnitureEdges} from './surface-edges.js?v=21';
-import {createRenderQuality} from './render-quality.js?v=21';
+import {createRenderQuality} from './render-quality.js?v=29';
 import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
@@ -19,7 +19,7 @@ const rooms=[
 {id:'flex',name:'多功能活动区',en:'FLEXIBLE LIVING',desc:'活动区按图纸保留开放地面，配整墙收纳与靠南墙收拢的四扇折叠移门，向右侧阳台延伸。',facts:['衣柜 3400 × 600','8百库 800 × 800 · 过道侧开门','四扇折叠移门'],x:1130,z:765,dist:8.7}
 ];
 let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,renderer,scene,camera,controls,flight=null,wallGroup,openingGroup,labelItems=[],frame=0;
-let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null;
+let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
 function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
@@ -79,7 +79,7 @@ function kitchenWindowWall(){
  box(innerW/2-.055,y+h*.44,-.065,.018,.115,.025,M.windowFrame,g);
  // A pale exterior background makes the aperture readable without a false wall.
  const sky=new THREE.MeshBasicMaterial({color:'#dce8ed',side:THREE.DoubleSide});
- box(0,y+h/2,.125,innerW-f*2,innerH-f*2,.003,sky,g);
+ box(0,y+h/2,.125,innerW-f*2,innerH-f*2,.003,sky,g).userData.photoExclude=true;
 }
 // Door skins follow the room-facing side, including north-facing cupboards.
 function wardrobe(x1,z1,x2,z2,front='z',height=2.35,finish=M.cream,split=1.12){
@@ -121,11 +121,12 @@ function sink(x,z,top=.95,w=.57,d=.42,rotation=0){
 }
 async function build(){scene=new THREE.Scene();scene.background=new THREE.Color('#e9eeeb');scene.fog=new THREE.Fog('#e9eeeb',37,75);camera=new THREE.PerspectiveCamera(38,1,.05,150);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.setClearColor('#e9eeeb');$('#canvas-wrap').prepend(renderer.domElement);renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','可交互三维户型。拖动旋转，滚轮缩放，方向键平移。');controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.maxPolarAngle=Math.PI/2-.035;controls.minDistance=2;controls.maxDistance=43;controls.target.set(0,.2,0);controls.autoRotateSpeed=.55;controls.listenToKeyEvents(renderer.domElement);controls.addEventListener('start',()=>{flight=null});renderer.domElement.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){zoom(.85);e.preventDefault()}if(e.key==='-'){zoom(1.15);e.preventDefault()}});
 let stone=mat('#fff');let wood=mat('#ffffff',.8);M={wall:mat('#f5f2e8'),trim:mat('#b8b4a7',.4),stone,wood,cream:mat('#e7e3d7'),dark:mat('#343936',.45),darkwood:mat('#745b43'),linen:mat('#ddd6c3'),duvet:mat('#f5f1e8'),headboard:mat('#77786c'),wetTile:mat('#d7d9d1'),tileStrip:mat('#dadbd2'),mirror:mat('#cadbdc',.20,.25),frosted:new THREE.MeshPhysicalMaterial({color:'#e8e6dc',transparent:true,opacity:.76,roughness:.85,side:THREE.DoubleSide,depthWrite:false}),teaGlass:new THREE.MeshPhysicalMaterial({color:'#796351',transparent:true,opacity:.60,roughness:.16,metalness:.18,depthWrite:false}),white:mat('#faf8f1'),windowFrame:mat('#ffffff',.35,.08),thread:mat('#a6a899'),pink:mat('#c47f8b'),green:mat('#205b38',.25),chrome:mat('#bcc9c8',.22,.85),metal:mat('#626e68',.35,.7),brass:mat('#a88958',.4,.6),sink:mat('#656e69',.32,.55),glass:new THREE.MeshPhysicalMaterial({color:'#b3ced0',transparent:true,opacity:.17,roughness:.12,side:THREE.DoubleSide,depthWrite:false}),leaf:mat('#46633d'),pot:mat('#b6a58b'),rug:mat('#b6b5a6')};
+for(const [name,material] of Object.entries(M))material.name=name;
 M.countertop=M.dark.clone();
 M.vanityStone=M.wetTile.clone();M.vanityStone.userData.surfaceIdBase='wetTile';
 finishLibrary=createFinishLibrary(THREE,renderer);await finishLibrary.preload();finishLibrary.initialize(M);
 wallGroup=new THREE.Group();scene.add(wallGroup);openingGroup=new THREE.Group();scene.add(openingGroup);
-const hemi=new THREE.HemisphereLight('#f5f5ef','#aaa394',.65);scene.add(hemi);let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
+const hemi=new THREE.HemisphereLight('#f5f5ef','#aaa394',.65);scene.add(hemi);let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.name='photo-sun';sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
 box(0,-.37,0,200,.1,200,mat('#e9eeeb'));
 const stepZ=planZ(K.wallStepZ);
 const outline=[[340,945],[340,stepZ],[400,stepZ],[400,267],[1368,267],[1368,493],[1314,553],[1314,945]];let sh=new THREE.Shape();outline.forEach(([x,z],i)=>i?sh.lineTo(X(x),-Z(z)):sh.moveTo(X(x),-Z(z)));sh.closePath();let geom=new THREE.ExtrudeGeometry(sh,{depth:.23,bevelEnabled:false});geom.rotateX(-Math.PI/2);let floor=new THREE.Mesh(geom,[M.stone,mat('#bac5bc')]);floor.position.y=-.22;floor.receiveShadow=true;floor.castShadow=true;scene.add(floor);
@@ -450,8 +451,8 @@ const vanityLed=kitchenLed.clone();
 slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,kitchenLed);
 slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,vanityLed);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
-renderQuality=createRenderQuality({renderer,scene,camera,sun});
-initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onOpen:()=>{lightingDesign?.close();controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
+renderQuality=createRenderQuality({renderer,scene,camera,sun,getLighting:()=>lightingDesign.photoState(),onPhotoView:photoView,onPhotoExit:leavePhoto});
+initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onChange:()=>renderQuality.invalidate(),onOpen:()=>{lightingDesign?.close();controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
 // Shape the existing registered cheek, preserving its material and component key.
 // Upper depth is the model's 300 mm cabinet depth; the 230 mm inset is inferred
 // from rendering 03 rather than a newly claimed construction dimension.
@@ -470,17 +471,35 @@ initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onOpen
 correctFlexStorage({THREE,F,right:fxRight,back:fz,wardrobe:flexWardrobe,service:flexStorage,partition:flexPartition});
 softenFurnitureEdges(scene,M);
 // Added after the registry so ceiling fittings do not intercept surface material picking.
-lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,extras:[
+lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>renderQuality.invalidate(),extras:[
  {id:'kitchen-under-cabinet',room:'kitchen',material:kitchenLed,position:[CW.x+runW*.5,1.51,cookingBack+.28],power:3.5},
  {id:'vanity-under-cabinet',room:'bath',material:vanityLed,position:[vx+mirrorW*.5,.23,vz+.10],power:1.6},
  {id:'vanity-mirror-led',room:'bath',material:mirrorLight,position:[vx+mirrorW*.5,1.79,mirrorFace-.025],power:2.5}
 ]});
+// Closed roof is render-only and is excluded from the stable material registry.
+photoRoof=new THREE.Mesh(geom.clone(),M.wall);photoRoof.position.y=D.ceiling;photoRoof.visible=false;photoRoof.name='photo-ceiling';photoRoof.userData.photoExcludePicking=true;scene.add(photoRoof);
 wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
 }
-function moveCamera(r,immediate=false){if(!camera)return;let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
+function moveCamera(r,immediate=false){if(!camera)return;if(photoSaved){leavePhoto();renderQuality.invalidate();}let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
 function resize(){if(!renderer||mode!=='scene')return;let b=$('#canvas-wrap').getBoundingClientRect();if(!b.width||!b.height)return;camera.aspect=b.width/b.height;camera.updateProjectionMatrix();if(renderQuality)renderQuality.resize(b.width,b.height);else renderer.setSize(b.width,b.height);}
 new ResizeObserver(()=>{let prior=camera?.aspect;resize();if(camera&&selected==='all'&&Math.abs(camera.aspect-(prior||0))>.15)moveCamera(rooms[0],true)}).observe($('main'));
-function animate(){requestAnimationFrame(animate);if(mode!=='scene')return;if(pulloutFlight){const t=reduced?1:Math.min((performance.now()-pulloutFlight.start)/700,1),v=t*t*(3-2*t);pulloutGroup.position.x=THREE.MathUtils.lerp(pulloutFlight.from,pulloutFlight.to,v);if(t===1)pulloutFlight=null}if(flight){let t=Math.min((performance.now()-flight.start)/950,1),v=1-Math.pow(1-t,3);camera.position.lerpVectors(flight.from,flight.to,v);controls.target.lerpVectors(flight.fromTarget,flight.toTarget,v);if(t===1)flight=null}controls.update();renderQuality.render();if(frame++%2===0){let w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight;for(let l of labelItems){let p=l.point.clone().project(camera);l.el.style.left=(p.x*.5+.5)*w+'px';l.el.style.top=(-p.y*.5+.5)*h+'px';l.el.style.opacity=showLabels&&selected==='all'&&p.z<1&&p.z>0&&p.x>-1&&p.x<1&&p.y>-1&&p.y<1?'1':'0'}}}
+function animate(){requestAnimationFrame(animate);if(mode!=='scene')return;if(pulloutFlight){renderQuality.invalidate();const t=reduced?1:Math.min((performance.now()-pulloutFlight.start)/700,1),v=t*t*(3-2*t);pulloutGroup.position.x=THREE.MathUtils.lerp(pulloutFlight.from,pulloutFlight.to,v);if(t===1)pulloutFlight=null}if(flight){let t=Math.min((performance.now()-flight.start)/950,1),v=1-Math.pow(1-t,3);camera.position.lerpVectors(flight.from,flight.to,v);controls.target.lerpVectors(flight.fromTarget,flight.toTarget,v);if(t===1)flight=null}controls.update();renderQuality.render();if(frame++%2===0){let w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight;for(let l of labelItems){let p=l.point.clone().project(camera);l.el.style.left=(p.x*.5+.5)*w+'px';l.el.style.top=(-p.y*.5+.5)*h+'px';l.el.style.opacity=showLabels&&selected==='all'&&p.z<1&&p.z>0&&p.x>-1&&p.x<1&&p.y>-1&&p.y<1?'1':'0'}}}
+function leavePhoto(){
+ if(!photoSaved)return;
+ photoRoof.visible=false;lightingDesign?.setPhoto(false);document.querySelector('#scene-view').classList.remove('photo-interior');fullWalls=photoSaved.fullWalls;wallGroup.scale.y=fullWalls?1:.25;openingGroup.visible=fullWalls;
+ camera.fov=photoSaved.fov;camera.position.copy(photoSaved.position);controls.target.copy(photoSaved.target);camera.updateProjectionMatrix();flight=null;
+ controls.minDistance=2;controls.maxPolarAngle=Math.PI/2-.035;
+ $('#walls').disabled=false;$('#walls').setAttribute('aria-pressed',String(fullWalls));$('#walls').textContent=fullWalls?'降低墙体':'完整墙体';photoSaved=null;
+}
+function photoView(view){
+ if(!photoSaved)photoSaved={position:camera.position.clone(),target:controls.target.clone(),fov:camera.fov,fullWalls};
+ flight=null;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';
+ fullWalls=true;wallGroup.scale.y=1;openingGroup.visible=true;photoRoof.visible=true;lightingDesign?.setPhoto(true);document.querySelector('#scene-view').classList.add('photo-interior');
+ $('#walls').disabled=true;$('#walls').setAttribute('aria-pressed','true');$('#walls').textContent='室内完整墙体';
+ const views={kitchen:[720,858,485,647,1.55,1.25],vanity:[900,445,792,539,1.58,1.20],master:[1038,502,1200,316,1.50,1.12],flex:[945,847,1160,635,1.55,1.32]};
+ const [x,z,tx,tz,y,ty]=views[view]||views.kitchen;
+ camera.fov=62;camera.position.set(X(x),y,Z(z));controls.target.set(X(tx),ty,Z(tz));controls.minDistance=.25;controls.maxPolarAngle=Math.PI-.05;camera.updateProjectionMatrix();controls.update();renderQuality?.invalidate();
+}
 function updateViewButtons(){$('#top').classList.toggle('active',topMode);$('#orbit').classList.toggle('active',!topMode)}
 $('#pullout-toggle').onclick=()=>{
  if(!pulloutGroup)return;
@@ -493,6 +512,6 @@ $('#pullout-toggle').onclick=()=>{
 $('#storage-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();const F=D.flexWardrobe;moveCamera({id:'storage-detail',x:1304-(F.width+F.serviceWidth*.5)*85.6,z:586+(F.depth-F.serviceDepth*.5)*85.6,dist:4.3,aimY:1.15,fit:false,direction:[-.95,1.2,1.0]})};
 $('#vanity-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'vanity-detail',x:790,z:527,dist:3.7,aimY:1.0,fit:false,direction:[.4,1.4,-1]})};
 $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'kitchen-detail',x:480,z:565,dist:4.2,aimY:1.1,fit:false,direction:[.28,.34,1]})};
-$('#walls').onclick=()=>{fullWalls=!fullWalls;wallGroup.scale.y=fullWalls?1:.25;openingGroup.visible=fullWalls;$('#walls').setAttribute('aria-pressed',String(fullWalls));$('#walls').textContent=fullWalls?'降低墙体':'完整墙体'};
+$('#walls').onclick=()=>{renderQuality.invalidate();fullWalls=!fullWalls;wallGroup.scale.y=fullWalls?1:.25;openingGroup.visible=fullWalls;$('#walls').setAttribute('aria-pressed',String(fullWalls));$('#walls').textContent=fullWalls?'降低墙体':'完整墙体'};
 $('#labels-toggle').onclick=()=>{showLabels=!showLabels;$('#labels-toggle').setAttribute('aria-pressed',String(showLabels))};$('#rotate').onclick=()=>{controls.autoRotate=!controls.autoRotate;$('#rotate').setAttribute('aria-pressed',String(controls.autoRotate));$('#rotate').textContent=controls.autoRotate?'停止旋转':'自动旋转'};$('#top').onclick=()=>{topMode=true;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#orbit').onclick=()=>{topMode=false;updateViewButtons();moveCamera(rooms.find(r=>r.id===selected))};$('#reset').onclick=()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';selectRoom('all')};function zoom(f){if(!camera)return;flight=null;let offset=camera.position.clone().sub(controls.target).multiplyScalar(f);offset.clampLength(controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(offset);controls.update()}$('#zoom-in').onclick=()=>zoom(.85);$('#zoom-out').onclick=()=>zoom(1.15);
 selectRoom('all',false);build().catch(err=>{console.error(err);$('#loading').textContent='三维画面暂时无法加载，请使用支持 WebGL 的浏览器。仍可查看设计效果图和平面图。';document.querySelectorAll('.scene-tools button,.view-controls button,.zoom-controls button').forEach(b=>b.disabled=true)});

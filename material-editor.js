@@ -83,7 +83,7 @@ async function decodeImage(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-export function initMaterialEditor({THREE, materials, renderer, scene, camera, finishLibrary, onOpen}) {
+export function initMaterialEditor({THREE, materials, renderer, scene, camera, finishLibrary, onChange=()=>{}, onOpen}) {
   const surfaces = buildSurfaceRegistry(scene, materials, GROUPS);
   materials = {...materials};
   const defaults = {}, settings = {}, ownedMaps = new Map();
@@ -151,6 +151,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     surfaces: Object.fromEntries(Object.keys(settings).filter(key=>surfaces.registry.has(key)).map(key=>[key,{...structuredClone(settings[key]),base:baseOf(key)}]))
   });
   function removeOverride(key) {
+    onChange();
     const meta = surfaces.registry.get(key);if (!meta || !settings[key]) return;
     assignSurfaceMaterial(meta,materials[meta.base]);ownedMaps.get(key)?.dispose();ownedMaps.delete(key);finishLibrary.dispose(materials[key]);materials[key].dispose();delete materials[key];delete settings[key];
   }
@@ -193,6 +194,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     materials[key].map = map;materials[key].needsUpdate = true;
   }
   function apply(key) {
+    onChange();
     const c = settings[key], m = materials[key];m.color.set(c.color);m.roughness = c.roughness;finishLibrary.decorate(m,c,baseOf(key));
     if (m.map) {m.map.wrapS = m.map.wrapT = THREE.RepeatWrapping;m.map.repeat.set(c.repeatX, c.repeatY);m.map.center.set(.5, .5);m.map.rotation = THREE.MathUtils.degToRad(c.rotation);m.map.needsUpdate = true;}
   }

@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import {fixtures,tracks,strips,membrane,lightingGroups} from './lighting-layout.mjs?v=21';
 const X=x=>(x-855)/85.6,Z=z=>(z-610)/85.6;
 // Physical positions follow the drawings. Fixture optics/flux/3000 K appearance are preview assumptions.
-export function createLightingDesign({scene,sun,fill,hemi,renderer,extras=[]}){
+export function createLightingDesign({scene,sun,fill,hemi,renderer,onChange=()=>{},extras=[]}){
  const overhead=new THREE.Group();overhead.name='P04-P07-light-fixtures';scene.add(overhead);
  const sources=[],glows=[],enabled=new Set(lightingGroups.map(([id])=>id));
  const housing=new THREE.MeshStandardMaterial({color:'#f5f3eb',roughness:.6});
  const railMat=new THREE.MeshStandardMaterial({color:'#333831',roughness:.48});
- let mode='day',room='all',shown=false;
+ let mode='day',room='all',shown=false,photo=false;
  function glow(room,material){glows.push({room,material});return material;}
  function face(room){return glow(room,new THREE.MeshStandardMaterial({color:'#fff0dc',emissive:'#ffddab',emissiveIntensity:0,roughness:.7,side:THREE.FrontSide}));}
  function mesh(geo,mat,x,y,z,parent=overhead){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m;}
@@ -47,7 +47,8 @@ export function createLightingDesign({scene,sun,fill,hemi,renderer,extras=[]}){
  document.querySelector('#scene-view').append(ui);
  const status=ui.querySelector('#lighting-status');
  function refresh(){
-  const lit=mode!=='day';overhead.visible=shown;
+  onChange();const lit=mode!=='day';overhead.visible=shown||photo;
+  ui.querySelector('#lighting-fixtures').disabled=photo;ui.querySelector('#lighting-fixtures').checked=shown||photo;
   const night=mode==='evening';document.querySelector('#scene-view').classList.toggle('night-scene',night);sun.intensity=night?.055:2.8;fill.intensity=night?.045:.4;hemi.intensity=night?.14:.65;
   scene.background.set(night?'#273039':'#e9eeeb');scene.fog.color.copy(scene.background);
   // Updated clones from material editing inherit the current lighting ambience.
@@ -76,7 +77,7 @@ export function createLightingDesign({scene,sun,fill,hemi,renderer,extras=[]}){
   }
   pool.forEach((light,i)=>{const s=chosen[i];light.intensity=lit&&s?Math.min(s.power,45):0;if(s){light.position.set(s.x,s.y,s.z);light.target.position.set(s.x,.05,s.z);light.angle=s.angle;light.distance=s.range;light.target.updateMatrixWorld();}});
   ui.querySelector('#lighting-rooms').disabled=!lit;
-  status.textContent=lit?`已开启 ${enabled.size} 个区域 · ${shown?'显示':'隐藏'}灯具`:'自然采光 · 室内灯具关闭';
+  status.textContent=lit?`已开启 ${enabled.size} 个区域 · ${shown||photo?'显示':'隐藏'}灯具`:'自然采光 · 室内灯具关闭';
  }
  button.onclick=()=>{const open=ui.classList.contains('hidden');ui.classList.toggle('hidden',!open);button.setAttribute('aria-expanded',String(open));if(open){document.querySelector('#material-panel')?.classList.add('hidden');document.querySelector('#materials-toggle')?.setAttribute('aria-expanded','false');}};
  function close(){ui.classList.add('hidden');button.setAttribute('aria-expanded','false');}
@@ -85,5 +86,12 @@ export function createLightingDesign({scene,sun,fill,hemi,renderer,extras=[]}){
  ui.querySelector('#lighting-fixtures').onchange=e=>{shown=e.target.checked;refresh();};
  ui.querySelectorAll('[data-light-room]').forEach(el=>el.onchange=()=>{if(el.checked)enabled.add(el.dataset.lightRoom);else enabled.delete(el.dataset.lightRoom);refresh();});
  ui.querySelector('#lighting-drawing').onclick=()=>{document.querySelector('[data-mode="plan"]').click();const select=document.querySelector('#drawing-select');select.value='lighting-dimensions';select.dispatchEvent(new Event('change'));};
- refresh();return {setRoom(id){room=id;refresh();},close,refresh};
+ refresh();return {setPhoto(value){photo=value;refresh();},photoState(){
+  const lit=mode!=='day',areaIds=new Set(strips.map(s=>s.id)),areas=[];
+  if(lit&&enabled.has(membrane.room))areas.push({id:membrane.id,x:X(membrane.x),y:membrane.height-.012,z:Z(membrane.z),width:membrane.width,height:membrane.depth,rotation:0,power:2.5});
+  if(lit)for(const strip of strips)if(enabled.has(strip.room)){
+   const [ax,az]=strip.from,[bx,bz]=strip.to;areas.push({id:strip.id,x:X((ax+bx)/2),y:strip.height-.012,z:Z((az+bz)/2),width:Math.hypot(bx-ax,bz-az)/85.6,height:.016,rotation:-Math.atan2(bz-az,bx-ax),power:8});
+  }
+  return {night:mode==='evening',areas,sources:lit?sources.filter(s=>enabled.has(s.room)&&!areaIds.has(s.id)&&!s.id.startsWith(membrane.id)).map(s=>({...s,power:s.power*.4})):[]};
+ },setRoom(id){room=id;refresh();},close,refresh};
 }

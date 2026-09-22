@@ -1,0 +1,7 @@
+{
+  "name":"qixia-home-401",
+  "private":true,
+  "type":"module",
+  "scripts":{"test":"node --test tests/*.test.mjs","build:pathtracer":"node tools/build-pathtracer.mjs"},
+  "devDependencies":{"esbuild":"0.25.0","three":"0.160.1","three-gpu-pathtracer":"0.0.20","three-mesh-bvh":"0.7.3","xatlas-web":"0.1.0"}
+}
