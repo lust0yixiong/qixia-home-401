@@ -1,8 +1,9 @@
-import {FINISHES} from './surface-finishes.js?v=23';
-import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js';
+import {FINISHES} from './surface-finishes.js?v=24';
+import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=24';
+import {REFERENCE_REVISION, migrateReferenceDefaults} from './reference-materials.js?v=24';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
-  ['stone', '地面石材'], ['wall', '墙面'], ['green', '厨房墙砖'], ['wetTile', '卫浴墙面'],
+  ['stone', '地面石材'], ['wall', '墙面'], ['green', '厨房墙砖'], ['wetTile', '卫浴墙面'], ['vanityStone', '洗漱区石材挡水墙'],
   ['windowFrame', '窗框与窗套'], ['linen', '座垫与床垫织物'], ['duvet', '床上织物'], ['pink', '次卧床架']
 ];
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -37,7 +38,7 @@ export function validateSurfacePlan(plan, registry) {
   const result = {};
   for (const [key, config] of Object.entries(plan.surfaces)) {
     const meta = registry.get(key);
-    if (!meta || meta.base !== config?.base) throw Error('方案中的部件与当前模型不匹配。');
+    if (!meta || (meta.base !== config?.base && (!meta.legacyBase || meta.legacyBase !== config?.base))) throw Error('方案中的部件与当前模型不匹配。');
     result[key] = validatePlan({version:1,materials:{[meta.base]:config}})[meta.base];
   }
   return result;
@@ -104,8 +105,9 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     <label for="material-target">材质类别</label><select id="material-target"></select>
     <label for="material-scope">修改范围</label><select id="material-scope"><option value="group">同类整体</option><option value="surface" disabled>仅此部件</option></select>
     <p class="material-note" id="material-scope-note">整体修改会覆盖该类部件的单独设置。</p>
-    <label for="material-preset">材质预设</label><select id="material-preset"><option value="">自定义 / 原始材质</option></select>
-    <details class="material-library" open><summary>岩板材质 · 3 款</summary><div id="material-slab-swatches" class="material-swatches"></div><p class="material-note">无砖缝石纹，适合台面与柜面。外观预览，不对应厂家型号。</p></details>
+    <label for="material-preset">材质预设</label><select id="material-preset"><option value="">自定义 / 效果图默认</option></select>
+    <details class="material-library" open><summary>原效果图材质 · 5 款</summary><div id="material-reference-swatches" class="material-swatches"></div><p class="material-note">依据原设计效果图整理的木纹、石材与釉面纹理。</p></details>
+    <details class="material-library"><summary>岩板材质 · 3 款</summary><div id="material-slab-swatches" class="material-swatches"></div><p class="material-note">无砖缝石纹，适合台面与柜面。外观预览，不对应厂家型号。</p></details>
     <details class="material-library"><summary>浏览实拍材质 · 6 款</summary><div id="material-swatches" class="material-swatches"></div><p class="material-note">Poly Haven · CC0 授权，已内置到网站。</p></details>
     <p id="material-source" class="material-note"></p>
     <div class="material-color-row"><label for="material-color">表面颜色</label><input id="material-color" type="color"><input id="material-hex" aria-label="颜色十六进制值" maxlength="7" spellcheck="false"></div>
@@ -120,7 +122,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     <label for="material-roughness">表面粗糙度 <output id="material-roughness-value"></output></label><input id="material-roughness" type="range" min="0" max="1" step="0.01">
     <div class="material-scale"><span>光滑</span><span>哑光</span></div>
     <label for="material-metalness">金属感 <output id="material-metalness-value"></output></label><input id="material-metalness" type="range" min="0" max="1" step="0.05">
-    <div class="material-actions"><button id="material-reset">恢复此部位</button><button id="material-reset-all">全部恢复默认</button></div>
+    <div class="material-actions"><button id="material-reset">恢复此部位</button><button id="material-reset-all">恢复效果图材质</button></div>
     <div class="material-actions material-plan"><button id="material-export">导出方案</button><button id="material-import">导入方案</button></div>
     <input id="material-plan-file" type="file" accept=".json,application/json" hidden>
     </fieldset>
@@ -129,22 +131,22 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
   document.querySelector('#scene-view').append(panel);
   const $ = id => panel.querySelector(`#${id}`), target = $('material-target');
   for (const [id, label] of GROUPS) target.add(new Option(label, id));
-  for(const [label,filter] of [['岩板材质',p=>p.category==='slab'],['其他材质',p=>p.category!=='slab']]){
+  for(const [label,filter] of [['原效果图',p=>p.reference],['岩板材质',p=>p.category==='slab'],['其他材质',p=>!p.reference&&p.category!=='slab']]){
     const group=document.createElement('optgroup');group.label=label;
     for(const p of FINISHES.filter(filter))group.append(new Option(p.name,p.id));$('material-preset').append(group);
   }
-  for(const p of FINISHES.filter(p=>p.asset||p.category==='slab')){
+  for(const p of FINISHES.filter(p=>p.reference||p.asset||p.category==='slab')){
     const b=document.createElement('button');b.type='button';b.dataset.preset=p.id;b.setAttribute('aria-label',`使用${p.name}`);
-    const preview=p.asset?`./assets/materials/${p.id}-color.jpg`:finishLibrary.get(p.id).map.image.toDataURL();
+    const preview=p.reference?`./assets/reference-materials/${p.file}`:p.asset?`./assets/materials/${p.id}-color.jpg`:finishLibrary.get(p.id).map.image.toDataURL();
     b.innerHTML=`<img src="${preview}" alt="" loading="lazy"><span>${p.name}</span>`;
-    b.onclick=()=>choosePreset(p.id);$(p.category==='slab'?'material-slab-swatches':'material-swatches').append(b);
+    b.onclick=()=>choosePreset(p.id);$(p.reference?'material-reference-swatches':p.category==='slab'?'material-slab-swatches':'material-swatches').append(b);
   }
   let active = 'wood', selectedSurface = null, busy = true, saveTimer, saveChain = Promise.resolve(), revision = 0;
   const status = message => { $('material-status').textContent = message; };
   const baseOf = key => surfaces.registry.get(key)?.base || key;
   const configFor = key => settings[key] || settings[baseOf(key)];
   const materialFor = key => materials[key] || materials[baseOf(key)];
-  const pack = () => ({version: 3,
+  const pack = () => ({version: 3, defaultRevision: REFERENCE_REVISION,
     materials: Object.fromEntries(GROUPS.map(([key])=>[key,structuredClone(settings[key])])),
     surfaces: Object.fromEntries(Object.keys(settings).filter(key=>surfaces.registry.has(key)).map(key=>[key,{...structuredClone(settings[key]),base:baseOf(key)}]))
   });
@@ -215,10 +217,11 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     for (const id of ['material-repeat-x', 'material-repeat-y', 'material-rotation']) $(id).disabled = !hasDetail;
     const preview = $('material-preview');preview.hidden = !hasMap;
     if (hasMap) preview.src = c.image || (currentMaterial.map.image.toDataURL?.()||currentMaterial.map.image.src);else preview.removeAttribute('src');
-    $('material-texture-name').textContent = c.mode === 'custom' ? c.name : c.mode==='preset'?FINISHES.find(p=>p.id===c.preset).name:hasMap?'原始纹理':'纯色表面';
+    $('material-texture-name').textContent = c.mode === 'custom' ? c.name : c.mode==='preset'?FINISHES.find(p=>p.id===c.preset).name:hasMap?'原效果图默认纹理':'纯色表面';
     for(const b of panel.querySelectorAll('[data-preset]'))b.setAttribute('aria-pressed',String(c.mode==='preset'&&c.preset===b.dataset.preset));
     const preset=FINISHES.find(p=>p.id===c.preset&&c.mode==='preset');
     $('material-source').replaceChildren();
+    if(c.mode==='original'||preset?.reference){$('material-source').textContent='按原效果图重建外观；实时光照下会有色差。';}
     if(preset?.asset){const a=document.createElement('a');a.href=preset.sourceUrl||`https://polyhaven.com/a/${preset.asset}`;a.target='_blank';a.rel='noopener';a.textContent='查看素材来源与 CC0 授权 ↗';$('material-source').append(a);}
     $('material-hex').setCustomValidity('');
   }
@@ -280,6 +283,8 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     status('方案已导出，包含自定义贴图。');
   };
   async function loadPlan(plan) {
+    validatePlan(plan);
+    plan=migrateReferenceDefaults(plan,defaults);
     const checked = validatePlan(plan), individual = validateSurfacePlan(plan,surfaces.registry), prepared = new Map();
     const entries=[...GROUPS.map(([key])=>[key,checked[key],key]),...Object.entries(individual).map(([key,c])=>[key,c,baseOf(key)])];
     try {
@@ -309,6 +314,6 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     catch {status('方案格式、贴图或部件不匹配，当前方案未改动。');} finally {setBusy(false);}
   };
   sync();
-  storage().then(async plan => {if (plan) await loadPlan(plan);status(plan ? '已恢复此浏览器上次的方案' : '选择部位，开始搭配。');})
+  storage().then(async plan => {if (plan) await loadPlan(plan);status(plan ? '已保留自定义搭配，未修改部位采用效果图默认材质。' : '已应用原效果图默认材质。');})
     .catch(() => status('本地方案不可用；仍可修改并导出备份。')).finally(() => setBusy(false));
 }

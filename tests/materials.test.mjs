@@ -50,3 +50,41 @@ test('scan loading shares in-flight work, rejects incomplete maps, and can retry
  assert.equal(calls,6);assert.equal(a,b);assert(a.normal);assert.equal(a.map.colorSpace,THREE.SRGBColorSpace);assert.equal(a.normal.colorSpace,THREE.NoColorSpace);
  assert.equal(await library.ensure('terrazzo'),a);assert.equal(calls,6);
 });
+
+test('reference defaults migrate untouched categories, preserving custom colors and per-part overrides',async()=>{
+ const {migrateReferenceDefaults,REFERENCE_REVISION}=await import('../reference-materials.js');
+ const wood={...basic,roughness:.58,metalness:0},stone={...basic,repeatX:5,repeatY:5};
+ const edited={...wood,color:'#aabbcc'},preset={...wood,mode:'preset',preset:'slab-white'};
+ const defaults={wood:{...wood,roughness:.57,map:{}},stone:{...basic,roughness:.72,map:{}},cream:{...basic,color:'#dcd6c9'}};
+ const plan={version:3,materials:{wood,stone,cream:edited,countertop:preset},surfaces:{one:{...edited,base:'wood'}}};
+ const next=migrateReferenceDefaults(plan,defaults);
+ assert.equal(next.materials.wood.roughness,.57);assert.equal(next.materials.stone.repeatX,1);assert(!('map' in next.materials.wood));
+ assert.deepEqual(next.materials.cream,edited);assert.deepEqual(next.materials.countertop,preset);assert.deepEqual(next.surfaces,plan.surfaces);
+ assert.equal(plan.materials.stone.repeatX,5);assert.equal(next.defaultRevision,REFERENCE_REVISION);
+ assert.equal(migrateReferenceDefaults(next,defaults),next);
+});
+test('separating vanity stone preserves historical surface IDs and accepts old overrides',()=>{
+ const scene=new THREE.Scene(),wetTile=new THREE.MeshStandardMaterial(),mesh=new THREE.Mesh(new THREE.BoxGeometry(1,.2,.018),wetTile);scene.add(mesh);
+ const before=buildSurfaceRegistry(scene,{wetTile},[['wetTile']]);
+ const vanityStone=wetTile.clone();vanityStone.userData.surfaceIdBase='wetTile';mesh.material=vanityStone;
+ const after=buildSurfaceRegistry(scene,{wetTile,vanityStone},[['wetTile'],['vanityStone']]);
+ const key=[...before.registry.keys()][0];assert.deepEqual([...after.registry.keys()],[key]);
+ assert.equal(after.registry.get(key).base,'vanityStone');
+ assert.deepEqual(validateSurfacePlan({version:3,surfaces:{[key]:{...basic,base:'wetTile'}}},after.registry)[key],basic);
+});
+test('reference maps initialize correct defaults and do not multiply the countertop color twice',async()=>{
+ const oldDocument=globalThis.document;
+ globalThis.document={createElement:()=>({getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}})})};
+ try {
+  const urls=[];
+  class Loader{async loadAsync(url){urls.push(url);return new THREE.Texture();}}
+  const lib=createFinishLibrary({...THREE,TextureLoader:Loader},{capabilities:{getMaxAnisotropy:()=>4}});
+  await lib.preload();assert.equal(urls.length,5);
+  const materials=Object.fromEntries(['wood','stone','countertop','green','vanityStone','cream','wall','linen','duvet','windowFrame'].map(key=>[key,new THREE.MeshStandardMaterial({color:key==='windowFrame'?'#ffffff':'#343936'})]));
+  lib.initialize(materials);
+  for(const key of ['wood','stone','countertop','green','vanityStone']){assert(materials[key].map);assert.equal(materials[key].color.getHexString(),'ffffff');assert.equal(materials[key].map.colorSpace,THREE.SRGBColorSpace);}
+  assert.equal(materials.windowFrame.color.getHexString(),'ffffff');assert.equal(materials.stone.map.repeat.x,1);
+  const source=await lib.ensure('ref-countertop');assert.equal(urls.length,5);assert.notEqual(materials.countertop.map,source.map);
+  const clone=materials.countertop.clone();lib.decorate(clone,{...basic,repeatX:3},'countertop');assert.notEqual(clone.bumpMap,materials.countertop.bumpMap);assert.equal(materials.countertop.bumpMap.repeat.x,1);
+ } finally {globalThis.document=oldDocument;}
+});

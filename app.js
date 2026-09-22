@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {createLightingDesign} from './lighting-design.js?v=21';
-import { initMaterialEditor } from './material-editor.js?v=23';
-import {createFinishLibrary} from './surface-finishes.js?v=23';
+import { initMaterialEditor } from './material-editor.js?v=24';
+import {createFinishLibrary} from './surface-finishes.js?v=24';
 import {softenFurnitureEdges} from './surface-edges.js?v=21';
 import {createRenderQuality} from './render-quality.js?v=21';
 import { OrbitControls } from './assets/OrbitControls.js';
@@ -120,6 +120,7 @@ function sink(x,z,top=.95,w=.57,d=.42,rotation=0){
 async function build(){scene=new THREE.Scene();scene.background=new THREE.Color('#e9eeeb');scene.fog=new THREE.Fog('#e9eeeb',37,75);camera=new THREE.PerspectiveCamera(38,1,.05,150);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.setClearColor('#e9eeeb');$('#canvas-wrap').prepend(renderer.domElement);renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','可交互三维户型。拖动旋转，滚轮缩放，方向键平移。');controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.maxPolarAngle=Math.PI/2-.035;controls.minDistance=2;controls.maxDistance=43;controls.target.set(0,.2,0);controls.autoRotateSpeed=.55;controls.listenToKeyEvents(renderer.domElement);controls.addEventListener('start',()=>{flight=null});renderer.domElement.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){zoom(.85);e.preventDefault()}if(e.key==='-'){zoom(1.15);e.preventDefault()}});
 let stone=mat('#fff');let wood=mat('#ffffff',.8);M={wall:mat('#f5f2e8'),trim:mat('#b8b4a7',.4),stone,wood,cream:mat('#e7e3d7'),dark:mat('#343936',.45),darkwood:mat('#745b43'),linen:mat('#ddd6c3'),duvet:mat('#f5f1e8'),headboard:mat('#77786c'),wetTile:mat('#d7d9d1'),tileStrip:mat('#dadbd2'),mirror:mat('#cadbdc',.20,.25),frosted:new THREE.MeshPhysicalMaterial({color:'#e8e6dc',transparent:true,opacity:.76,roughness:.85,side:THREE.DoubleSide,depthWrite:false}),teaGlass:new THREE.MeshPhysicalMaterial({color:'#796351',transparent:true,opacity:.60,roughness:.16,metalness:.18,depthWrite:false}),white:mat('#faf8f1'),windowFrame:mat('#ffffff',.35,.08),thread:mat('#a6a899'),pink:mat('#c47f8b'),green:mat('#205b38',.25),chrome:mat('#bcc9c8',.22,.85),metal:mat('#626e68',.35,.7),brass:mat('#a88958',.4,.6),sink:mat('#656e69',.32,.55),glass:new THREE.MeshPhysicalMaterial({color:'#b3ced0',transparent:true,opacity:.17,roughness:.12,side:THREE.DoubleSide,depthWrite:false}),leaf:mat('#46633d'),pot:mat('#b6a58b'),rug:mat('#b6b5a6')};
 M.countertop=M.dark.clone();
+M.vanityStone=M.wetTile.clone();M.vanityStone.userData.surfaceIdBase='wetTile';
 finishLibrary=createFinishLibrary(THREE,renderer);await finishLibrary.preload();finishLibrary.initialize(M);
 wallGroup=new THREE.Group();scene.add(wallGroup);openingGroup=new THREE.Group();scene.add(openingGroup);
 const hemi=new THREE.HemisphereLight('#f5f5ef','#aaa394',.65);scene.add(hemi);let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
@@ -385,9 +386,9 @@ slab(holeX+holeW,holeZ,vx+vw-holeX-holeW,holeD,apronBottom,.12,M.white);
 slab(holeX+.012,holeZ+.012,holeW-.024,holeD-.024,.695,.018,M.white);
 cyl(basinX,.716,holeZ+holeD*.6,.018,.004,M.dark);
 // 200 mm backsplash and matching return finish under the hanging cabinet.
-slab(vx,vback-.018,mirrorW,.018,.03,.97,M.wetTile);
-for(let x=vx;x<vx+mirrorW;x+=.075)slab(x,vback-.020,.002,.003,.80,.20,M.trim);
-slab(vx-.010,vz,.010,V.depth,.03,.97,M.wetTile);
+slab(vx,vback-.018,mirrorW,.018,.03,.97,M.vanityStone);
+// Continuous veined stone, as in reference rendering 07.
+slab(vx-.010,vz,.010,V.depth,.03,.97,M.vanityStone);
 // Black wall-mounted mixer and spout (rendering 07 / EL.03).
 for(let x of[basinX-.085,basinX+.085])slab(x-.025,vback-.025,.05,.018,.875,.05,M.dark);
 slab(basinX-.014,vback-.18,.028,.18,.902,.024,M.dark);

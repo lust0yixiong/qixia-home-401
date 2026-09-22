@@ -1,5 +1,7 @@
+import {REFERENCE_FINISHES, REFERENCE_PALETTE} from './reference-materials.js?v=24';
 // Bundled CC0 oak scans plus locally generated seamless PBR surfaces.
 export const FINISHES = [
+  ...REFERENCE_FINISHES,
   {id:'paint',name:'哑光烤漆',color:'#e8e4dc',roughness:.68,metalness:0},
   {id:'oak',name:'自然橡木',color:'#ffffff',roughness:.58,metalness:0,asset:'oak_veneer_01'},
   {id:'walnut',name:'深色胡桃木',color:'#ffffff',roughness:.52,metalness:0},
@@ -52,10 +54,11 @@ export function sampleSurface(kind,u,v) {
 }
 export function createFinishLibrary(THREE,renderer) {
   const cache=new Map(),owned=new WeakMap();
-  const baseKinds={wood:'oak',stone:'limestone',countertop:'slate',cream:'paint',wall:'paint',linen:'fabric',duvet:'fabric'};
+  const baseKinds={...Object.fromEntries(REFERENCE_FINISHES.map(p=>[p.base,p.id])),cream:'paint',wall:'paint',linen:'fabric',duvet:'fabric'};
   const baseMetal={};
   function get(id) {
     if(cache.has(id))return cache.get(id);
+    const reference=REFERENCE_FINISHES.find(p=>p.id===id);if(reference)return get(reference.fallback);
     const size=512,canvases=[0,1,2].map(()=>{const c=document.createElement('canvas');c.width=c.height=size;return c;});
     const contexts=canvases.map(c=>c.getContext('2d')),images=contexts.map(c=>c.createImageData(size,size));
     for(let y=0;y<size;y++)for(let x=0;x<size;x++){
@@ -68,11 +71,20 @@ export function createFinishLibrary(THREE,renderer) {
   }
   const pending=new Map();
   async function ensure(id){
-    if(!FINISHES.find(p=>p.id===id)?.asset)return get(id);
-    if(cache.get(id)?.normal)return cache.get(id);
+    const reference=REFERENCE_FINISHES.find(p=>p.id===id);
+    if(!reference&&!FINISHES.find(p=>p.id===id)?.asset)return get(id);
+    if(cache.get(id)?.normal||cache.get(id)?.reference)return cache.get(id);
     if(pending.has(id))return pending.get(id);
     const job=(async()=>{
       const loader=new THREE.TextureLoader();
+      if(reference){
+        const map=await loader.loadAsync(`./assets/reference-materials/${reference.file}`);
+        map.colorSpace=THREE.SRGBColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;
+        map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+        const detail=get('paint');
+        const value={map,bump:detail.bump,rough:detail.rough,normal:null,reference:true};
+        cache.set(id,value);return value;
+      }
       // A failed request leaves the active material and saved configuration untouched.
       const jobs=await Promise.allSettled(['color','normal','roughness'].map(name=>loader.loadAsync(`./assets/materials/${id}-${name}.jpg`)));
       if(jobs.some(r=>r.status==='rejected')){for(const r of jobs)if(r.status==='fulfilled')r.value.dispose();throw Error('素材加载失败');}
@@ -82,7 +94,7 @@ export function createFinishLibrary(THREE,renderer) {
     })();
     pending.set(id,job);try{return await job;}finally{pending.delete(id);}
   }
-  async function preload(){try{await ensure('oak');}catch{console.warn('木纹图片暂不可用，采用内置备用纹理。');}}
+  async function preload(){await Promise.all(REFERENCE_FINISHES.map(async p=>{try{await ensure(p.id);}catch{console.warn(`${p.name}暂不可用，采用备用纹理。`);}}));}
   function dispose(material){const record=owned.get(material);if(record){record.maps.forEach(t=>t?.dispose());owned.delete(material);}}
   function decorate(material,config,base) {
     const kind=config.mode==='preset'?config.preset:config.mode==='original'?(baseKinds[base]||null):null;
@@ -102,11 +114,12 @@ export function createFinishLibrary(THREE,renderer) {
       baseMetal[key]=m.metalness;
       m.envMapIntensity=['chrome','metal','brass','sink','mirror'].includes(key)?.85:.48;
     }
+    for(const [key,color] of Object.entries(REFERENCE_PALETTE))materials[key]?.color.set(color);
     for(const [key,kind] of Object.entries(baseKinds)) {
-      const m=materials[key],source=get(kind),old=m.map;
-      if(source.map&&key!=='countertop'){m.map=source.map.clone();m.color.set('#ffffff');if(key==='stone')m.map.repeat.set(5,5);}
+      const m=materials[key];if(!m)continue;const source=get(kind),old=m.map;
+      if(source.map){m.map=source.map.clone();m.color.set('#ffffff');if(key==='stone')m.map.repeat.set(1,1);}
       if(old)old.dispose();
-      m.roughness={wood:.58,stone:.6,countertop:.38,cream:.68,wall:.92,linen:.95,duvet:.95}[key];
+      m.roughness=REFERENCE_FINISHES.find(p=>p.base===key)?.roughness??{cream:.68,wall:.92,linen:.95,duvet:.95}[key];
       decorate(m,{mode:'original',repeatX:m.map?.repeat.x||1,repeatY:m.map?.repeat.y||1,rotation:0},key);
     }
   }

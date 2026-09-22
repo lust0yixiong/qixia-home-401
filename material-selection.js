@@ -18,10 +18,11 @@ export function buildSurfaceRegistry(scene, materials, groups) {
       object.geometry.computeBoundingBox();
       const bb = object.geometry.boundingBox;
       const shape = [...object.matrixWorld.elements, ...bb.min.toArray(), ...bb.max.toArray()].map(v => Math.round(v * 100000) / 100000);
-      const token = hash(JSON.stringify([base, slot, object.geometry.type, object.geometry.attributes.position.count, shape]));
+      const legacyBase=material.userData?.surfaceIdBase;
+      const token = hash(JSON.stringify([legacyBase||base, slot, object.geometry.type, object.geometry.attributes.position.count, shape]));
       const ordinal = duplicates.get(token) || 0;duplicates.set(token, ordinal + 1);
       const key = `s-${token}-${ordinal}`;
-      registry.set(key, {key, base, object, slot, number: registry.size + 1});slots.set(slot, key);
+      registry.set(key, {key, base, legacyBase, object, slot, number: registry.size + 1});slots.set(slot, key);
     });
   });
   return {registry, lookup, meshes};
