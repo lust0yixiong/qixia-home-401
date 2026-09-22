@@ -1,3 +1,4 @@
+import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
   ['stone', '地面石材'], ['wall', '墙面'], ['green', '厨房墙砖'], ['wetTile', '卫浴墙面'],
@@ -10,7 +11,7 @@ const DB = 'qixia-materials-v1';
 
 // Validate imports before any material or saved preference is changed.
 export function validatePlan(plan) {
-  if (!plan || plan.version !== 1 || !plan.materials || typeof plan.materials !== 'object' || Array.isArray(plan.materials)) throw Error('不是支持的材质方案文件。');
+  if (!plan || ![1, 2].includes(plan.version) || !plan.materials || typeof plan.materials !== 'object' || Array.isArray(plan.materials)) throw Error('不是支持的材质方案文件。');
   const result = {};
   for (const [key, c] of Object.entries(plan.materials)) {
     if (!GROUPS.some(([id]) => id === key)) throw Error('方案包含未知材质。');
@@ -22,6 +23,18 @@ export function validatePlan(plan) {
     if (c.mode === 'custom' && (typeof c.image !== 'string' || c.image.length > 8 * 1024 * 1024 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(c.image))) throw Error('方案中的贴图无效或过大。');
     result[key] = {color: c.color.toLowerCase(), mode: c.mode, repeatX: c.repeatX, repeatY: c.repeatY, rotation: c.rotation, roughness: c.roughness,
       ...(c.mode === 'custom' ? {image: c.image, name: String(c.name || '本地贴图').slice(0, 120)} : {})};
+  }
+  return result;
+}
+
+export function validateSurfacePlan(plan, registry) {
+  if (plan.version === 1) return {};
+  if (!plan.surfaces || typeof plan.surfaces !== 'object' || Array.isArray(plan.surfaces)) throw Error('部件方案格式无效。');
+  const result = {};
+  for (const [key, config] of Object.entries(plan.surfaces)) {
+    const meta = registry.get(key);
+    if (!meta || meta.base !== config?.base) throw Error('方案中的部件与当前模型不匹配。');
+    result[key] = validatePlan({version:1,materials:{[meta.base]:config}})[meta.base];
   }
   return result;
 }
@@ -65,7 +78,9 @@ async function decodeImage(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
+export function initMaterialEditor({THREE, materials, renderer, scene, camera, onOpen}) {
+  const surfaces = buildSurfaceRegistry(scene, materials, GROUPS);
+  materials = {...materials};
   const defaults = {}, settings = {}, ownedMaps = new Map();
   for (const [key] of GROUPS) {
     const m = materials[key];
@@ -74,13 +89,17 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
   }
   const button = document.createElement('button');button.id = 'materials-toggle';button.textContent = '材质设置';
   button.setAttribute('aria-expanded', 'false');button.setAttribute('aria-controls', 'material-panel');
-  document.querySelector('.scene-tools').append(button);
+  const pickButton = document.createElement('button');pickButton.id = 'material-pick';pickButton.textContent = '点选换材质';pickButton.setAttribute('aria-pressed','false');
+  document.querySelector('.scene-tools').append(button, pickButton);
+  const pickHint = document.createElement('p');pickHint.id = 'material-pick-hint';pickHint.className = 'hidden';pickHint.setAttribute('role','status');document.querySelector('#scene-view').append(pickHint);
   const panel = document.createElement('section');panel.id = 'material-panel';panel.className = 'hidden';panel.setAttribute('aria-label', '材质设置');
   panel.innerHTML = `
     <div class="material-head"><div><span class="eyebrow">MAKE IT YOURS</span><h2>材质与配色</h2></div><button id="material-close" aria-label="关闭材质设置">×</button></div>
-    <p class="material-note">同类部位一起修改，可边旋转模型边查看。</p>
+    <p class="material-note" id="material-selection-label">选择材质类别，或开启“点选换材质”后点击模型。</p>
     <fieldset id="material-fields" disabled>
-    <label for="material-target">修改部位</label><select id="material-target"></select>
+    <label for="material-target">材质类别</label><select id="material-target"></select>
+    <label for="material-scope">修改范围</label><select id="material-scope"><option value="group">同类整体</option><option value="surface" disabled>仅此部件</option></select>
+    <p class="material-note" id="material-scope-note">整体修改会覆盖该类部件的单独设置。</p>
     <div class="material-color-row"><label for="material-color">表面颜色</label><input id="material-color" type="color"><input id="material-hex" aria-label="颜色十六进制值" maxlength="7" spellcheck="false"></div>
     <p class="material-note">有贴图时，颜色会叠加在贴图上；白色保留素材原色。</p>
     <div class="texture-preview"><img id="material-preview" alt="当前纹理预览" hidden><span id="material-texture-name"></span></div>
@@ -101,9 +120,38 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
   document.querySelector('#scene-view').append(panel);
   const $ = id => panel.querySelector(`#${id}`), target = $('material-target');
   for (const [id, label] of GROUPS) target.add(new Option(label, id));
-  let active = 'wood', busy = false, saveTimer, saveChain = Promise.resolve(), revision = 0;
+  let active = 'wood', selectedSurface = null, busy = true, saveTimer, saveChain = Promise.resolve(), revision = 0;
   const status = message => { $('material-status').textContent = message; };
-  const pack = () => ({version: 1, materials: structuredClone(settings)});
+  const baseOf = key => surfaces.registry.get(key)?.base || key;
+  const configFor = key => settings[key] || settings[baseOf(key)];
+  const materialFor = key => materials[key] || materials[baseOf(key)];
+  const pack = () => ({version: 2,
+    materials: Object.fromEntries(GROUPS.map(([key])=>[key,structuredClone(settings[key])])),
+    surfaces: Object.fromEntries(Object.keys(settings).filter(key=>surfaces.registry.has(key)).map(key=>[key,{...structuredClone(settings[key]),base:baseOf(key)}]))
+  });
+  function removeOverride(key) {
+    const meta = surfaces.registry.get(key);if (!meta || !settings[key]) return;
+    assignSurfaceMaterial(meta,materials[meta.base]);ownedMaps.get(key)?.dispose();ownedMaps.delete(key);materials[key].dispose();delete materials[key];delete settings[key];
+  }
+  function clearGroupOverrides(base) {for (const key of Object.keys(settings)) if(surfaces.registry.get(key)?.base===base) removeOverride(key);}
+  function ensureEditable(key=active) {
+    const meta=surfaces.registry.get(key);
+    if (!meta) {clearGroupOverrides(key);return;}
+    if (settings[key]) return;
+    settings[key]=structuredClone(settings[meta.base]);materials[key]=materials[meta.base].clone();
+    const map=materials[meta.base].map;
+    if(map){materials[key].map=map.clone();ownedMaps.set(key,materials[key].map);}
+    assignSurfaceMaterial(meta,materials[key]);
+  }
+  const picking = installMaterialPicking({THREE,scene,camera,canvas:renderer.domElement,surfaces,
+    onPick:key=>{
+      if(busy)return false;
+      selectedSurface=key;active=key;panel.classList.remove('hidden');button.setAttribute('aria-expanded','true');onOpen();sync();panel.scrollTop=0;return true;
+    },
+    onHint:message=>{pickHint.textContent=message;pickHint.classList.toggle('hidden',!message);},
+    onEnabled:enabled=>{pickButton.setAttribute('aria-pressed',String(enabled));pickButton.textContent=enabled?'结束点选':'点选换材质';if(enabled)onOpen();}
+  });
+  pickButton.onclick=()=>{picking.setEnabled(!picking.enabled);if(picking.enabled){panel.classList.add('hidden');button.setAttribute('aria-expanded','false');}};
   const save = () => {
     const currentRevision = ++revision;
     clearTimeout(saveTimer);status('正在保存到本机…');
@@ -128,21 +176,30 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
     if (m.map) {m.map.wrapS = m.map.wrapT = THREE.RepeatWrapping;m.map.repeat.set(c.repeatX, c.repeatY);m.map.center.set(.5, .5);m.map.rotation = THREE.MathUtils.degToRad(c.rotation);m.map.needsUpdate = true;}
   }
   function sync() {
-    const c = settings[active];target.value = active;
+    const c = configFor(active), base=baseOf(active);target.value = base;
+    const meta=surfaces.registry.get(selectedSurface);
+    const local=surfaces.registry.has(active);
+    $('material-scope').value=local?'surface':'group';
+    $('material-scope').querySelector('[value="surface"]').disabled=!meta || meta.base!==base;
+    $('material-selection-label').textContent=meta && meta.base===base ? `已选：${GROUPS.find(([key])=>key===base)[1]} · 部件 ${meta.number}` : '选择材质类别，或开启“点选换材质”后点击模型。';
+    $('material-scope-note').textContent=local?'只修改选中的部件，不影响其他部件。':'整体修改会覆盖该类部件的单独设置。';
+    $('material-reset').textContent=local?'跟随同类材质':'恢复此类默认';
     $('material-color').value = $('material-hex').value = c.color;
     for (const field of ['repeat-x', 'repeat-y', 'roughness']) {
       const prop = {'repeat-x': 'repeatX', 'repeat-y': 'repeatY', roughness: 'roughness'}[field];
       $(`material-${field}`).value = c[prop];$(`material-${field}-value`).value = String(c[prop]);
     }
     $('material-rotation').value = c.rotation;
-    const hasMap = !!materials[active].map;
+    const hasMap = !!materialFor(active).map;
     for (const id of ['material-repeat-x', 'material-repeat-y', 'material-rotation']) $(id).disabled = !hasMap;
     const preview = $('material-preview');preview.hidden = !hasMap;
-    if (hasMap) preview.src = c.image || defaults[active].map.image.toDataURL();else preview.removeAttribute('src');
+    if (hasMap) preview.src = c.image || defaults[base].map.image.toDataURL();else preview.removeAttribute('src');
     $('material-texture-name').textContent = c.mode === 'custom' ? c.name : hasMap ? '原始纹理' : '纯色表面';
     $('material-hex').setCustomValidity('');
   }
   function restore(key) {
+    if (surfaces.registry.has(key)) {removeOverride(key);return;}
+    clearGroupOverrides(key);
     const {map, ...c} = defaults[key];settings[key] = {...c};replaceMap(key, map ? map.clone() : null);apply(key);
   }
   function setBusy(value) {busy = value;$('material-fields').disabled = value;}
@@ -151,20 +208,21 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
     if (open) {onOpen();$('material-close').focus();}
   };
   function close() {panel.classList.add('hidden');button.setAttribute('aria-expanded', 'false');button.focus();}
-  $('material-close').onclick = close;panel.addEventListener('keydown', e => {if (e.key === 'Escape') {e.stopPropagation();close();}});
-  target.onchange = () => {active = target.value;sync();};
-  $('material-color').oninput = e => {settings[active].color = e.target.value;$('material-hex').value = e.target.value;apply(active);save();};
+  $('material-close').onclick = close;panel.addEventListener('keydown', e => {if (e.key === 'Escape') {e.stopPropagation();picking.setEnabled(false);close();}});
+  target.onchange = () => {active = target.value;selectedSurface=null;picking.clearHighlight();sync();};
+  $('material-scope').onchange=()=>{active=$('material-scope').value==='surface'&&selectedSurface?selectedSurface:baseOf(active);sync();};
+  $('material-color').oninput = e => {ensureEditable();settings[active].color = e.target.value;$('material-hex').value = e.target.value;apply(active);save();};
   $('material-hex').oninput = e => {
     const value = e.target.value.trim();e.target.setCustomValidity('');
-    if (/^#[0-9a-f]{6}$/i.test(value)) {settings[active].color = value.toLowerCase();$('material-color').value = value;apply(active);save();}
+    if (/^#[0-9a-f]{6}$/i.test(value)) {ensureEditable();settings[active].color = value.toLowerCase();$('material-color').value = value;apply(active);save();}
   };
   $('material-hex').onchange = e => {
     const value = e.target.value.trim();
     if (!/^#[0-9a-f]{6}$/i.test(value)) {e.target.setCustomValidity('请输入 # 加六位颜色值，例如 #b99570');e.target.reportValidity();return;}
-    settings[active].color = value.toLowerCase();apply(active);sync();save();
+    ensureEditable();settings[active].color = value.toLowerCase();apply(active);sync();save();
   };
   for (const [id, prop] of [['repeat-x','repeatX'],['repeat-y','repeatY'],['rotation','rotation'],['roughness','roughness']]) {
-    $(`material-${id}`).oninput = e => {settings[active][prop] = Number(e.target.value);apply(active);const output = $(`material-${id}-value`);if(output) output.value = e.target.value;save();};
+    $(`material-${id}`).oninput = e => {ensureEditable();settings[active][prop] = Number(e.target.value);apply(active);const output = $(`material-${id}-value`);if(output) output.value = e.target.value;save();};
   }
   $('material-upload').onclick = () => $('material-file').click();
   $('material-file').onchange = async e => {
@@ -173,11 +231,11 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
     const key = active;setBusy(true);status('正在处理贴图…');
     try {
       const {canvas, data} = await decodeImage(file);
-      replaceMap(key, mapFromCanvas(canvas));settings[key] = {...settings[key], mode: 'custom', image: data, name: file.name.slice(0,120), color: '#ffffff', repeatX: 1, repeatY: 1, rotation: 0};
+      ensureEditable(key);replaceMap(key, mapFromCanvas(canvas));settings[key] = {...settings[key], mode: 'custom', image: data, name: file.name.slice(0,120), color: '#ffffff', repeatX: 1, repeatY: 1, rotation: 0};
       apply(key);sync();save();
     } catch {status('图片读取失败或尺寸过大，原有材质已保留。');} finally {setBusy(false);}
   };
-  $('material-solid').onclick = () => {settings[active].mode = 'solid';delete settings[active].image;delete settings[active].name;replaceMap(active, null);apply(active);sync();save();};
+  $('material-solid').onclick = () => {ensureEditable();settings[active].mode = 'solid';delete settings[active].image;delete settings[active].name;replaceMap(active, null);apply(active);sync();save();};
   $('material-reset').onclick = () => {restore(active);sync();save();};
   $('material-reset-all').onclick = () => {for (const [key] of GROUPS) restore(key);sync();save();};
   $('material-export').onclick = () => {
@@ -186,21 +244,23 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
     status('方案已导出，包含自定义贴图。');
   };
   async function loadPlan(plan) {
-    const checked = validatePlan(plan), prepared = new Map();
+    const checked = validatePlan(plan), individual = validateSurfacePlan(plan,surfaces.registry), prepared = new Map();
+    const entries=[...GROUPS.map(([key])=>[key,checked[key],key]),...Object.entries(individual).map(([key,c])=>[key,c,baseOf(key)])];
     try {
-      for (const [key] of GROUPS) {
-        const c = checked[key];
+      for (const [key,c,base] of entries) {
         if (c?.mode === 'custom') {
           const bytes = Uint8Array.from(atob(c.image.split(',')[1]), ch => ch.charCodeAt(0));
           const {canvas, data} = await decodeImage(new Blob([bytes], {type: c.image.slice(5,c.image.indexOf(';'))}));
           c.image = data;prepared.set(key, mapFromCanvas(canvas));
-        } else if ((!c || c.mode === 'original') && defaults[key].map) prepared.set(key, defaults[key].map.clone());
+        } else if ((!c || c.mode === 'original') && defaults[base].map) prepared.set(key, defaults[base].map.clone());
       }
     } catch (error) {for (const map of prepared.values()) map.dispose();throw error;}
+    for (const key of Object.keys(settings)) if(surfaces.registry.has(key))removeOverride(key);
     for (const [key] of GROUPS) {
       const {map, ...fallback} = defaults[key];settings[key] = checked[key] || fallback;
       replaceMap(key, prepared.get(key) || null);apply(key);
     }
+    for(const [key,c] of Object.entries(individual)){ensureEditable(key);settings[key]=c;replaceMap(key,prepared.get(key)||null);apply(key);}
     sync();
   }
   $('material-import').onclick = () => $('material-plan-file').click();
@@ -209,7 +269,7 @@ export function initMaterialEditor({THREE, materials, renderer, onOpen}) {
     if (file.size > MAX_PLAN) {status('方案文件超过 40 MB，请精简贴图后再导入。');return;}
     setBusy(true);status('正在读取方案…');
     try {await loadPlan(JSON.parse(await file.text()));save();}
-    catch {status('方案格式或贴图无效，当前方案未改动。');} finally {setBusy(false);}
+    catch {status('方案格式、贴图或部件不匹配，当前方案未改动。');} finally {setBusy(false);}
   };
   sync();
   storage().then(async plan => {if (plan) await loadPlan(plan);status(plan ? '已恢复此浏览器上次的方案' : '选择部位，开始搭配。');})

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initMaterialEditor } from './material-editor.js';
+import { initMaterialEditor } from './material-editor.js?v=19';
 import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
@@ -437,7 +437,7 @@ for(let x of[1094,1296])outlet(X(x),.79,Z(277),0,.172,wallGroup);
 // Ceiling-free view retains selected light fittings as low-profile design cues.
 const led=new THREE.MeshStandardMaterial({color:'#f5d99f',emissive:'#f7c782',emissiveIntensity:.7});slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,led);slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,led);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
-initMaterialEditor({THREE,materials:M,renderer,onOpen:()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
+initMaterialEditor({THREE,materials:M,renderer,scene,camera,onOpen:()=>{controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
 wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
 }
 function moveCamera(r,immediate=false){if(!camera)return;let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
