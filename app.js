@@ -8,6 +8,8 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {createKitchenPosition,createFridgePerson} from './kitchen-position.mjs?v=42';
+import {initKitchenPositionUI} from './kitchen-position-ui.js?v=42';
 import {createWetSharedDoor} from './wet-shared-door.mjs?v=41';
 import {createBunkBed,bunkBedPlacement} from './bunk-bed.mjs?v=40';
 import {correctWestJunctions} from './west-junctions.mjs?v=38';
@@ -25,11 +27,12 @@ const rooms=[
 {id:'flex',name:'多功能活动区',en:'FLEXIBLE LIVING',desc:'活动区按图纸保留开放地面，配整墙收纳与靠南墙收拢的四扇折叠移门，向右侧阳台延伸。',facts:['衣柜 3400 × 600','8百库 800 × 800 · 过道侧开门','四扇折叠移门'],x:1130,z:765,dist:8.7}
 ];
 let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,renderer,scene,camera,controls,flight=null,wallGroup,openingGroup,labelItems=[],frame=0;
+let kitchenPosition=null,kitchenPositionUI=null,fridgePerson=null;
 let islandSink=null,sharedWetDoor=null,wetDoorSide='shower';
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#wet-entry-detail').classList.toggle('hidden',id!=='bath');$('#wet-shared-toggle').classList.toggle('hidden',id!=='bath');$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#kitchen-position-toggle').classList.toggle('hidden',id!=='kitchen');if(id!=='kitchen')kitchenPositionUI?.close();$('#wet-entry-detail').classList.toggle('hidden',id!=='bath');$('#wet-shared-toggle').classList.toggle('hidden',id!=='bath');$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
@@ -251,6 +254,7 @@ box(GC.x+GC.width-.055,1.72,gasFront+.023,.015,.105,.012,M.brass,gasGroup);
 const westCounterFronts=[],westCounterHandles=[];
 let segmentStart=L.z;for(let d of[.60,.65,.55,.44]){westCounterFronts.push(slab(L.x+L.width-.008,segmentStart+.007,.008,d-.014,.10,.78,M.cream));westCounterHandles.push(slab(L.x+L.width,segmentStart+.045,.016,.17,.65,.014,M.brass));segmentStart+=d}
 const legacyWestSink=sink(planX(L.x+.29),planZ(L.z+.93),D.westCounter.top,.40,.42);
+const kitchenMovingStart=scene.children.length;
 // EL.08: island 1010 high, 120 mm stone fascia; table 800 high, 60 mm top.
 // Rendering 03: the bar-facing doors sit behind the stone overhang.
 // Recess the actual cabinet volume as well as its door skins; keep the 2000 x 1100 outer top.
@@ -271,6 +275,7 @@ slab(T.x+T.width-.065,T.z,.065,T.depth,0,.74,M.cream);
 stool(planX(I.x+.55),planZ(I.z+I.depth+.30));stool(planX(I.x+1.32),planZ(I.z+I.depth+.30));
 chair(planX(T.x+.63),planZ(T.z-.15));chair(planX(T.x+1.24),planZ(T.z-.15));
 slab(T.x+.17,T.z+T.depth+.24,1.58,.34,.15,.31,M.wood);slab(T.x+.19,T.z+T.depth+.25,1.54,.32,.46,.075,M.linen);
+const kitchenMovingParts=scene.children.slice(kitchenMovingStart);
 // The entry cabinet starts where the long side cabinet ends (250 mm deep).
 const entryRight=X(711);
 slab(L.x,K.entryFront,entryRight-L.x,K.entryDepth,.04,1.025,M.wood);
@@ -455,7 +460,9 @@ function outlet(x,y,z,angle=0,width=.086,parent=scene){
 }
 outlet(CW.x+.22,1.13,cookingBack+.018,0,.172);
 outlet(CW.pierX+.15,1.14,CW.frontZ+.024,0,.172);
+const islandOutletStart=scene.children.length;
 for(let x of[I.x+.50,I.x+1.50])outlet(x,.54,barFront+.006,0,.172);
+kitchenMovingParts.push(...scene.children.slice(islandOutletStart));
 // Mirror-cabinet power is behind the closed mirror, not an exposed socket on its face.
 for(let x of[1094,1296])outlet(X(x),.79,Z(277),0,.172,wallGroup);
 // EL.01 / EL.03 cabinet LEDs; the lighting controller follows P.04/P.09.
@@ -490,6 +497,9 @@ correctWestJunctions({THREE,layout:K,window:KW,gas:GC,height:D.ceiling,walls:wes
 sharedWetDoor=createWetSharedDoor({THREE,scene,openingGroup,materials:M,legacy:oldWetFronts,divider:wetDivider});
 softenFurnitureEdges(scene,M);
 installCoffeeMachine({THREE,scene,counter:L});
+kitchenPosition=createKitchenPosition({THREE,scene,parts:[...kitchenMovingParts,islandSink.root],layout:K,cooking:CW});
+fridgePerson=createFridgePerson({THREE,scene,cooking:CW});
+kitchenPositionUI=initKitchenPositionUI({placement:kitchenPosition,person:fridgePerson,onChange:()=>renderQuality.invalidate(),onView:()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();moveCamera({id:'fridge-operation',x:planX(CW.fridgeX+.25),z:planZ(CW.frontZ+.60),dist:4.6,aimY:.85,fit:true,direction:[.7,.8,1]});}});
 // Added after the registry so ceiling fittings do not intercept surface material picking.
 lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>renderQuality.invalidate(),extras:[
  {id:'kitchen-under-cabinet',room:'kitchen',material:kitchenLed,position:[CW.x+runW*.5,1.51,cookingBack+.28],power:3.5},
@@ -532,7 +542,7 @@ $('#pullout-toggle').onclick=()=>{
 $('#storage-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();const F=D.flexWardrobe;moveCamera({id:'storage-detail',x:1304-(F.width+F.serviceWidth*.5)*85.6,z:586+(F.depth-F.serviceDepth*.5)*85.6,dist:4.3,aimY:1.15,fit:false,direction:[-.95,1.2,1.0]})};
 $('#vanity-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'vanity-detail',x:790,z:527,dist:3.7,aimY:1.0,fit:false,direction:[.4,1.4,-1]})};
 $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'kitchen-detail',x:480,z:565,dist:4.2,aimY:1.1,fit:false,direction:[.28,.34,1]})};
-$('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
+$('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34+(kitchenPosition?.offsetCm??10)/100),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
 $('#west-junction-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'west-junction-detail',x:planX(K.shortSide.x-.18),z:planZ(K.longSide.z),dist:2.6,aimY:1.1,fit:false,direction:[1,.32,1.25]});};
 $('#wet-entry-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'wet-entry-detail',x:854,z:362,dist:3.0,aimY:1.1,fit:true,direction:[.15,.24,1]});};
 $('#wet-shared-toggle').onclick=()=>{if(!sharedWetDoor)return;if(!fullWalls)$('#walls').click();wetDoorSide=wetDoorSide==='shower'?'laundry':'shower';sharedWetDoor.setSide(wetDoorSide);$('#wet-shared-toggle').textContent=wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧';$('#wet-shared-toggle').setAttribute('aria-label',wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧');renderQuality.invalidate();};
