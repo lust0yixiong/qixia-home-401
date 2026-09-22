@@ -160,5 +160,83 @@
     "size": 865194,
     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_rough_1k.jpg",
     "md5": "a19b44176a078b9ae93314133848c9aa"
+  },
+  {
+    "preset": "slab-white",
+    "asset": "Marble012",
+    "slot": "color",
+    "file": "slab-white-color.jpg",
+    "size": 1220876,
+    "md5": "805a32d69cd83da7f280e0becd4ed9db",
+    "url": "https://ambientcg.com/get?file=Marble012_1K-JPG.zip",
+    "archiveMember": "Marble012_1K-JPG_Color.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble012",
+    "license": "CC0 1.0"
+  },
+  {
+    "preset": "slab-white",
+    "asset": "Marble012",
+    "slot": "normal",
+    "file": "slab-white-normal.jpg",
+    "size": 342955,
+    "md5": "7899d19090e6c78165e4a89f7cbb2706",
+    "url": "https://ambientcg.com/get?file=Marble012_1K-JPG.zip",
+    "archiveMember": "Marble012_1K-JPG_NormalGL.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble012",
+    "license": "CC0 1.0"
+  },
+  {
+    "preset": "slab-white",
+    "asset": "Marble012",
+    "slot": "roughness",
+    "file": "slab-white-roughness.jpg",
+    "size": 535814,
+    "md5": "41124e18d47823656e5ef47dce2f8a59",
+    "url": "https://ambientcg.com/get?file=Marble012_1K-JPG.zip",
+    "archiveMember": "Marble012_1K-JPG_Roughness.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble012",
+    "license": "CC0 1.0"
+  },
+  {
+    "preset": "slab-black",
+    "asset": "Marble006",
+    "slot": "color",
+    "file": "slab-black-color.jpg",
+    "size": 1239605,
+    "md5": "9d03e249a86d5db6a123d81ca8ff9e47",
+    "url": "https://ambientcg.com/get?file=Marble006_1K-JPG.zip",
+    "archiveMember": "Marble006_1K-JPG_Color.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble006",
+    "license": "CC0 1.0"
+  },
+  {
+    "preset": "slab-black",
+    "asset": "Marble006",
+    "slot": "normal",
+    "file": "slab-black-normal.jpg",
+    "size": 342803,
+    "md5": "36e5606bbb262ddb115f5d370f48b2e4",
+    "url": "https://ambientcg.com/get?file=Marble006_1K-JPG.zip",
+    "archiveMember": "Marble006_1K-JPG_NormalGL.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble006",
+    "license": "CC0 1.0"
+  },
+  {
+    "preset": "slab-black",
+    "asset": "Marble006",
+    "slot": "roughness",
+    "file": "slab-black-roughness.jpg",
+    "size": 517036,
+    "md5": "20a818a36b1873d502e179c875d9e4d7",
+    "url": "https://ambientcg.com/get?file=Marble006_1K-JPG.zip",
+    "archiveMember": "Marble006_1K-JPG_Roughness.jpg",
+    "verification": "ZIP CRC verified; MD5 recorded locally",
+    "source": "https://ambientcg.com/view?id=Marble006",
+    "license": "CC0 1.0"
   }
 ]

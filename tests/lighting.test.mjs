@@ -23,9 +23,9 @@ test('ceiling layout counts, heights, and references stay explicit',()=>{
  assert(fixtures.filter(f=>f.id.startsWith('master-triple')).every(f=>f.circuit===15));
  assert(fixtures.filter(f=>f.id.startsWith('balcony')).every(f=>f.circuit===11));
 });
-test('bundled internet texture files match the publisher manifests',()=>{
+test('bundled internet texture files match the recorded checksums',()=>{
  const root=new URL('../assets/materials/',import.meta.url);
  const files=JSON.parse(readFileSync(new URL('sources.json',root)));
- assert.equal(files.length,18);
+ assert.equal(files.length,24);
  for(const item of files){const bytes=readFileSync(new URL(item.file,root));assert.equal(bytes.length,item.size,item.file);assert.equal(createHash('md5').update(bytes).digest('hex'),item.md5,item.file);}
 });

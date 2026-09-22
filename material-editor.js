@@ -1,4 +1,4 @@
-import {FINISHES} from './surface-finishes.js?v=21';
+import {FINISHES} from './surface-finishes.js?v=23';
 import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
@@ -105,7 +105,8 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     <label for="material-scope">修改范围</label><select id="material-scope"><option value="group">同类整体</option><option value="surface" disabled>仅此部件</option></select>
     <p class="material-note" id="material-scope-note">整体修改会覆盖该类部件的单独设置。</p>
     <label for="material-preset">材质预设</label><select id="material-preset"><option value="">自定义 / 原始材质</option></select>
-    <details class="material-library"><summary>浏览实拍材质 · 6 款</summary><div id="material-swatches"></div><p class="material-note">Poly Haven · CC0 授权，已内置到网站。</p></details>
+    <details class="material-library" open><summary>岩板材质 · 3 款</summary><div id="material-slab-swatches" class="material-swatches"></div><p class="material-note">无砖缝石纹，适合台面与柜面。外观预览，不对应厂家型号。</p></details>
+    <details class="material-library"><summary>浏览实拍材质 · 6 款</summary><div id="material-swatches" class="material-swatches"></div><p class="material-note">Poly Haven · CC0 授权，已内置到网站。</p></details>
     <p id="material-source" class="material-note"></p>
     <div class="material-color-row"><label for="material-color">表面颜色</label><input id="material-color" type="color"><input id="material-hex" aria-label="颜色十六进制值" maxlength="7" spellcheck="false"></div>
     <p class="material-note">有贴图时，颜色会叠加在贴图上；白色保留素材原色。</p>
@@ -128,11 +129,15 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
   document.querySelector('#scene-view').append(panel);
   const $ = id => panel.querySelector(`#${id}`), target = $('material-target');
   for (const [id, label] of GROUPS) target.add(new Option(label, id));
-  for(const p of FINISHES)$('material-preset').add(new Option(p.name,p.id));
-  for(const p of FINISHES.filter(p=>p.asset)){
+  for(const [label,filter] of [['岩板材质',p=>p.category==='slab'],['其他材质',p=>p.category!=='slab']]){
+    const group=document.createElement('optgroup');group.label=label;
+    for(const p of FINISHES.filter(filter))group.append(new Option(p.name,p.id));$('material-preset').append(group);
+  }
+  for(const p of FINISHES.filter(p=>p.asset||p.category==='slab')){
     const b=document.createElement('button');b.type='button';b.dataset.preset=p.id;b.setAttribute('aria-label',`使用${p.name}`);
-    b.innerHTML=`<img src="./assets/materials/${p.id}-color.jpg" alt="" loading="lazy"><span>${p.name}</span>`;
-    b.onclick=()=>choosePreset(p.id);$('material-swatches').append(b);
+    const preview=p.asset?`./assets/materials/${p.id}-color.jpg`:finishLibrary.get(p.id).map.image.toDataURL();
+    b.innerHTML=`<img src="${preview}" alt="" loading="lazy"><span>${p.name}</span>`;
+    b.onclick=()=>choosePreset(p.id);$(p.category==='slab'?'material-slab-swatches':'material-swatches').append(b);
   }
   let active = 'wood', selectedSurface = null, busy = true, saveTimer, saveChain = Promise.resolve(), revision = 0;
   const status = message => { $('material-status').textContent = message; };
@@ -211,10 +216,10 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     const preview = $('material-preview');preview.hidden = !hasMap;
     if (hasMap) preview.src = c.image || (currentMaterial.map.image.toDataURL?.()||currentMaterial.map.image.src);else preview.removeAttribute('src');
     $('material-texture-name').textContent = c.mode === 'custom' ? c.name : c.mode==='preset'?FINISHES.find(p=>p.id===c.preset).name:hasMap?'原始纹理':'纯色表面';
-    for(const b of $('material-swatches').children)b.setAttribute('aria-pressed',String(c.mode==='preset'&&c.preset===b.dataset.preset));
+    for(const b of panel.querySelectorAll('[data-preset]'))b.setAttribute('aria-pressed',String(c.mode==='preset'&&c.preset===b.dataset.preset));
     const preset=FINISHES.find(p=>p.id===c.preset&&c.mode==='preset');
     $('material-source').replaceChildren();
-    if(preset?.asset){const a=document.createElement('a');a.href=`https://polyhaven.com/a/${preset.asset}`;a.target='_blank';a.rel='noopener';a.textContent='查看素材来源与 CC0 授权 ↗';$('material-source').append(a);}
+    if(preset?.asset){const a=document.createElement('a');a.href=preset.sourceUrl||`https://polyhaven.com/a/${preset.asset}`;a.target='_blank';a.rel='noopener';a.textContent='查看素材来源与 CC0 授权 ↗';$('material-source').append(a);}
     $('material-hex').setCustomValidity('');
   }
   function restore(key) {

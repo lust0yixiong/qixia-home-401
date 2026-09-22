@@ -4,7 +4,9 @@ export const FINISHES = [
   {id:'oak',name:'自然橡木',color:'#ffffff',roughness:.58,metalness:0,asset:'oak_veneer_01'},
   {id:'walnut',name:'深色胡桃木',color:'#ffffff',roughness:.52,metalness:0},
   {id:'limestone',name:'浅色石材',color:'#ffffff',roughness:.6,metalness:0},
-  {id:'slate',name:'深灰岩板',color:'#ffffff',roughness:.38,metalness:0},
+  {id:'slate',name:'深灰哑光岩板',color:'#ffffff',roughness:.38,metalness:0,category:'slab'},
+  {id:'slab-white',name:'浅灰石纹岩板',color:'#ffffff',roughness:.32,metalness:0,category:'slab',asset:'Marble012',sourceUrl:'https://ambientcg.com/view?id=Marble012',normalStrength:.06},
+  {id:'slab-black',name:'黑色石纹岩板',color:'#ffffff',roughness:.26,metalness:0,category:'slab',asset:'Marble006',sourceUrl:'https://ambientcg.com/view?id=Marble006',normalStrength:.06},
   {id:'brushed',name:'拉丝金属',color:'#c2c8c6',roughness:.35,metalness:1},
   {id:'walnut-natural',name:'天然黑胡桃木',color:'#ffffff',roughness:.65,metalness:0,asset:'black_walnut_veneer_01'},
   {id:'marble-beige',name:'米色大理石',color:'#ffffff',roughness:.32,metalness:0,asset:'marble_01'},
@@ -89,7 +91,7 @@ export function createFinishLibrary(THREE,renderer) {
     if(!record||record.kind!==kind||record.source!==source){
       dispose(material);
       record={kind,source,maps:source?[source.bump?.clone()||null,source.rough.clone(),source.normal?.clone()||null]:[]};owned.set(material,record);
-      material.bumpMap=record.maps[0]||null;material.roughnessMap=record.maps[1]||null;material.normalMap=record.maps[2]||null;material.normalScale.set(.22,.22);material.needsUpdate=true;
+      material.bumpMap=record.maps[0]||null;material.roughnessMap=record.maps[1]||null;material.normalMap=record.maps[2]||null;material.normalScale.setScalar(FINISHES.find(p=>p.id===kind)?.normalStrength??.22);material.needsUpdate=true;
     }
     material.bumpScale=kind==='oak'||kind==='walnut'?.0015:kind==='fabric'?.0015:kind==='paint'?.0004:kind==='brushed'?.0003:.0006;
     material.metalness=config.metalness??baseMetal[base]??0;
