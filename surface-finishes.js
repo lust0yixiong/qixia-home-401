@@ -1,3 +1,4 @@
+import {STAINLESS_FINISHES,sampleStainless,stainlessPixels} from './stainless-finishes.mjs?v=33';
 import {REFERENCE_FINISHES, REFERENCE_PALETTE} from './reference-materials.js?v=25';
 // Bundled CC0 oak scans plus locally generated seamless PBR surfaces.
 export const FINISHES = [
@@ -9,7 +10,7 @@ export const FINISHES = [
   {id:'slate',name:'深灰哑光岩板',color:'#ffffff',roughness:.38,metalness:0,category:'slab'},
   {id:'slab-white',name:'浅灰石纹岩板',color:'#ffffff',roughness:.32,metalness:0,category:'slab',asset:'Marble012',sourceUrl:'https://ambientcg.com/view?id=Marble012',normalStrength:.06},
   {id:'slab-black',name:'黑色石纹岩板',color:'#ffffff',roughness:.26,metalness:0,category:'slab',asset:'Marble006',sourceUrl:'https://ambientcg.com/view?id=Marble006',normalStrength:.06},
-  {id:'brushed',name:'拉丝金属',color:'#c2c8c6',roughness:.35,metalness:1},
+  ...STAINLESS_FINISHES,
   {id:'walnut-natural',name:'天然黑胡桃木',color:'#ffffff',roughness:.65,metalness:0,asset:'black_walnut_veneer_01'},
   {id:'marble-beige',name:'米色大理石',color:'#ffffff',roughness:.32,metalness:0,asset:'marble_01'},
   {id:'terrazzo',name:'彩粒水磨石',color:'#ffffff',roughness:.6,metalness:0,asset:'terrazzo_tiles'},
@@ -26,6 +27,7 @@ function noise(x,y,frequency,seed=0) {
   return (a+(b-a)*s)*(1-t)+(c+(d-c)*s)*t;
 }
 export function sampleSurface(kind,u,v) {
+  if(STAINLESS_FINISHES.some(p=>p.id===kind))return sampleStainless(kind,u,v);
   const n=noise(u,v,8,9),fine=noise(u,v,128,2),mid=noise(u,v,32,3);
   let color, height,rough;
   if(kind==='oak'||kind==='walnut') {
@@ -55,10 +57,16 @@ export function sampleSurface(kind,u,v) {
 export function createFinishLibrary(THREE,renderer) {
   const cache=new Map(),owned=new WeakMap();
   const baseKinds={...Object.fromEntries(REFERENCE_FINISHES.map(p=>[p.base,p.id])),cream:'paint',wall:'paint',linen:'fabric',duvet:'fabric'};
-  const baseMetal={};
+  const baseMetal={},baseEnvironment={};
   function get(id) {
     if(cache.has(id))return cache.get(id);
     const reference=REFERENCE_FINISHES.find(p=>p.id===id);if(reference)return get(reference.fallback);
+    if(STAINLESS_FINISHES.some(p=>p.id===id)){
+      const size=512,pixels=stainlessPixels(id,size),canvases={};
+      for(const key of ['normal','rough','preview']){const canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d'),image=ctx.createImageData(size,size);image.data.set(pixels[key]);ctx.putImageData(image,0,0);canvases[key]=canvas;}
+      const texture=canvas=>{const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;};
+      const value={map:null,bump:null,normal:texture(canvases.normal),rough:texture(canvases.rough),preview:canvases.preview};cache.set(id,value);return value;
+    }
     const size=512,canvases=[0,1,2].map(()=>{const c=document.createElement('canvas');c.width=c.height=size;return c;});
     const contexts=canvases.map(c=>c.getContext('2d')),images=contexts.map(c=>c.createImageData(size,size));
     for(let y=0;y<size;y++)for(let x=0;x<size;x++){
@@ -107,12 +115,14 @@ export function createFinishLibrary(THREE,renderer) {
     }
     material.bumpScale=kind==='oak'||kind==='walnut'?.0015:kind==='fabric'?.0015:kind==='paint'?.0004:kind==='brushed'?.0003:.0006;
     material.metalness=config.metalness??baseMetal[base]??0;
+    material.envMapIntensity=STAINLESS_FINISHES.some(p=>p.id===kind)?.9:(baseEnvironment[base]??.48);
     for(const t of record.maps){if(!t)continue;t.repeat.set(config.repeatX,config.repeatY);t.center.set(.5,.5);t.rotation=THREE.MathUtils.degToRad(config.rotation);}
   }
   function initialize(materials) {
     for(const [key,m] of Object.entries(materials)) {
       baseMetal[key]=m.metalness;
       m.envMapIntensity=['chrome','metal','brass','sink','mirror'].includes(key)?.85:.48;
+      baseEnvironment[key]=m.envMapIntensity;
     }
     for(const [key,color] of Object.entries(REFERENCE_PALETTE))materials[key]?.color.set(color);
     for(const [key,kind] of Object.entries(baseKinds)) {

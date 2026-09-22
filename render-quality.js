@@ -55,7 +55,7 @@ export function createRenderQuality({renderer,scene,camera,sun,getLighting,onPho
     photoError=null;renderer.toneMappingExposure=Number(field('exposure').value);field('recovery').classList.add('hidden');field('pause').disabled=false;
     status.textContent='加载照片级引擎…';progress.textContent='首次使用需要准备模型与着色器。';
     await runPhotoRequest({
-      load:()=>photo?null:(loading ||= import('./photo-renderer.js?v=31&attempt='+ ++loadAttempt)),
+      load:()=>photo?null:(loading ||= import('./photo-renderer.js?v=33&attempt='+ ++loadAttempt)),
       isCurrent:()=>id===requestId&&quality==='photo',
       ready:module=>{
         if(!photo)photo=module.createPhotoRenderer({renderer,scene,camera,getLighting});

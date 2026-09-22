@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {PathTracingSceneGenerator,PathTracingRenderer,PhysicalPathTracingMaterial,GradientEquirectTexture,DenoiseMaterial,PhysicalSpotLight,FullScreenQuad} from './assets/pathtracer-v0.0.20.js';
-import {createPhotoSnapshot} from './photo-scene.mjs?v=29';
+import {createPhotoSnapshot} from './photo-scene.mjs?v=33';
 export function createPhotoRenderer({renderer,scene,camera,getLighting}){
  const material=new PhysicalPathTracingMaterial();material.bounces=10;material.transmissiveBounces=12;material.filterGlossyFactor=.25;
  const tracer=new PathTracingRenderer(renderer);tracer.camera=camera;tracer.material=material;tracer.tiles.set(2,2);

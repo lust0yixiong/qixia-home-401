@@ -14,7 +14,17 @@ export function createPhotoSnapshot(THREE, source, lighting, PhysicalSpotLight) 
  source.updateMatrixWorld(true);
  source.traverseVisible(o=>{
   if(!o.isMesh||o.userData.photoExclude)return;
-  if(!geometries.has(o.geometry))geometries.set(o.geometry,o.geometry.clone());
+  if(!geometries.has(o.geometry)){
+   const copy=o.geometry.clone();
+   // The tracer's normal-map preparation reassigns a local mergeVertices result
+   // for non-indexed geometry. Provide an index first so its tangents and shared
+   // attributes are written onto the actual snapshot, including custom sinks.
+   if(!copy.index)copy.setIndex(Array.from({length:copy.attributes.position.count},(_,i)=>i));
+   // Generate for all compatible snapshots, including multi-material meshes and
+   // geometry shared by surfaces with different normal-map settings.
+   if(copy.attributes.normal&&copy.attributes.uv&&!copy.attributes.tangent)copy.computeTangents();
+   geometries.set(o.geometry,copy);
+  }
   const mesh=new THREE.Mesh(geometries.get(o.geometry),Array.isArray(o.material)?o.material.map(materialFor):materialFor(o.material));
   mesh.name=o.name;mesh.matrixAutoUpdate=false;mesh.matrix.copy(o.matrixWorld);snapshot.add(mesh);
  });

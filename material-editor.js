@@ -1,4 +1,4 @@
-import {FINISHES} from './surface-finishes.js?v=25';
+import {FINISHES} from './surface-finishes.js?v=33';
 import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=25';
 import {REFERENCE_REVISION, migrateReferenceDefaults} from './reference-materials.js?v=25';
 const GROUPS = [
@@ -107,6 +107,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     <p class="material-note" id="material-scope-note">整体修改会覆盖该类部件的单独设置。</p>
     <label for="material-preset">材质预设</label><select id="material-preset"><option value="">自定义 / 效果图默认</option></select>
     <details class="material-library" open><summary>原效果图材质 · 5 款</summary><div id="material-reference-swatches" class="material-swatches"></div><p class="material-note">依据原设计效果图整理的木纹、石材与釉面纹理。</p></details>
+    <details class="material-library"><summary>不锈钢 · 6 种花纹</summary><div id="material-steel-swatches" class="material-swatches"></div><p class="material-note">拉丝、砂面、镜面与压纹。支持旋转方向、调整花纹疏密和粗糙度。</p></details>
     <details class="material-library"><summary>岩板材质 · 3 款</summary><div id="material-slab-swatches" class="material-swatches"></div><p class="material-note">无砖缝石纹，适合台面与柜面。外观预览，不对应厂家型号。</p></details>
     <details class="material-library"><summary>浏览实拍材质 · 6 款</summary><div id="material-swatches" class="material-swatches"></div><p class="material-note">Poly Haven · CC0 授权，已内置到网站。</p></details>
     <p id="material-source" class="material-note"></p>
@@ -131,15 +132,15 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
   document.querySelector('#scene-view').append(panel);
   const $ = id => panel.querySelector(`#${id}`), target = $('material-target');
   for (const [id, label] of GROUPS) target.add(new Option(label, id));
-  for(const [label,filter] of [['原效果图',p=>p.reference],['岩板材质',p=>p.category==='slab'],['其他材质',p=>!p.reference&&p.category!=='slab']]){
+  for(const [label,filter] of [['原效果图',p=>p.reference],['岩板材质',p=>p.category==='slab'],['不锈钢',p=>p.category==='stainless'],['其他材质',p=>!p.reference&&p.category!=='slab'&&p.category!=='stainless']]){
     const group=document.createElement('optgroup');group.label=label;
     for(const p of FINISHES.filter(filter))group.append(new Option(p.name,p.id));$('material-preset').append(group);
   }
-  for(const p of FINISHES.filter(p=>p.reference||p.asset||p.category==='slab')){
+  for(const p of FINISHES.filter(p=>p.reference||p.asset||p.category==='slab'||p.category==='stainless')){
     const b=document.createElement('button');b.type='button';b.dataset.preset=p.id;b.setAttribute('aria-label',`使用${p.name}`);
-    const preview=p.reference?`./assets/reference-materials/${p.file}`:p.asset?`./assets/materials/${p.id}-color.jpg`:finishLibrary.get(p.id).map.image.toDataURL();
+    const preview=p.reference?`./assets/reference-materials/${p.file}`:p.asset?`./assets/materials/${p.id}-color.jpg`:(finishLibrary.get(p.id).preview||finishLibrary.get(p.id).map.image).toDataURL();
     b.innerHTML=`<img src="${preview}" alt="" loading="lazy"><span>${p.name}</span>`;
-    b.onclick=()=>choosePreset(p.id);$(p.reference?'material-reference-swatches':p.category==='slab'?'material-slab-swatches':'material-swatches').append(b);
+    b.onclick=()=>choosePreset(p.id);$(p.reference?'material-reference-swatches':p.category==='slab'?'material-slab-swatches':p.category==='stainless'?'material-steel-swatches':'material-swatches').append(b);
   }
   let active = 'wood', selectedSurface = null, busy = true, saveTimer, saveChain = Promise.resolve(), revision = 0;
   const status = message => { $('material-status').textContent = message; };
@@ -223,6 +224,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     for(const b of panel.querySelectorAll('[data-preset]'))b.setAttribute('aria-pressed',String(c.mode==='preset'&&c.preset===b.dataset.preset));
     const preset=FINISHES.find(p=>p.id===c.preset&&c.mode==='preset');
     $('material-source').replaceChildren();
+    if(preset?.category==='stainless'){preview.hidden=false;preview.src=finishLibrary.get(preset.id).preview.toDataURL();$('material-source').textContent='程序生成的不锈钢纹理；高画质与照片级均支持。预览卡片为示意，实际反射随灯光和周围环境变化。';}
     if(c.mode==='original'||preset?.reference){$('material-source').textContent='按原效果图重建外观；实时光照下会有色差。';}
     if(preset?.asset){const a=document.createElement('a');a.href=preset.sourceUrl||`https://polyhaven.com/a/${preset.asset}`;a.target='_blank';a.rel='noopener';a.textContent='查看素材来源与 CC0 授权 ↗';$('material-source').append(a);}
     $('material-hex').setCustomValidity('');
@@ -260,7 +262,7 @@ export function initMaterialEditor({THREE, materials, renderer, scene, camera, f
     const key=active;setBusy(true);status('正在加载材质…');
     try{
       const source=await finishLibrary.ensure(p.id);
-      ensureEditable(key);settings[key]={mode:'preset',preset:p.id,color:p.color,roughness:p.roughness,metalness:p.metalness,repeatX:1,repeatY:1,rotation:0};
+      ensureEditable(key);settings[key]={mode:'preset',preset:p.id,color:p.color,roughness:p.roughness,metalness:p.metalness,repeatX:p.repeatX??1,repeatY:p.repeatY??1,rotation:0};
       replaceMap(key,source.map?.clone()||null);apply(key);sync();save();
     }catch{sync();status('素材加载失败，原有材质已保留。请重试。');}finally{setBusy(false);}
   }

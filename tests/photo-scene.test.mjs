@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../assets/three.module.js';
 import {createPhotoSnapshot} from '../photo-scene.mjs';
+test('normal mapped custom sinks and indexed furniture get compatible snapshot indices and tangents',()=>{
+ const scene=new THREE.Scene(),normalMap=new THREE.Texture(),steel=new THREE.MeshStandardMaterial({normalMap});
+ const nonIndexed=new THREE.BoxGeometry(.6,.04,2.24).toNonIndexed(),indexed=new THREE.BoxGeometry();
+ const originalCount=nonIndexed.attributes.position.count;
+ scene.add(new THREE.Mesh(nonIndexed,steel),new THREE.Mesh(indexed,new THREE.MeshStandardMaterial()),new THREE.Mesh(nonIndexed,[steel,steel]));
+ const snapshot=createPhotoSnapshot(THREE,scene,{sources:[]},THREE.SpotLight);
+ for(const mesh of snapshot.scene.children){assert(mesh.geometry.index);assert(mesh.geometry.attributes.tangent);assert([...mesh.geometry.attributes.tangent.array].every(Number.isFinite));}
+ const copy=snapshot.scene.children[0].geometry;assert.equal(copy.attributes.position.count,originalCount);assert.equal(copy.index.count,originalCount);
+ assert.equal(nonIndexed.index,null);assert.equal(nonIndexed.attributes.tangent,undefined);assert.equal(indexed.attributes.tangent,undefined);
+ assert.equal(snapshot.scene.children[2].geometry,copy);snapshot.dispose();
+});
 test('photo snapshot respects hidden ancestry and world transforms without editing originals',()=>{
  const scene=new THREE.Scene(),group=new THREE.Group();group.position.set(3,2,1);scene.add(group);
  const geometry=new THREE.BoxGeometry(),material=new THREE.MeshStandardMaterial();
