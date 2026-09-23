@@ -8,6 +8,7 @@ import { OrbitControls } from './assets/OrbitControls.js';
 import { kitchenLayout as K, kitchenWindow as KW, cookingWallLayout as CW, kitchenGasCabinet as GC, planX, planZ } from './kitchen-layout.mjs';
 import { foldingDoorLayout as FD } from './folding-door-layout.mjs';
 import { interiorLayout as D } from './interior-layout.mjs?v=26';
+import {correctLaundryStorage} from './laundry-storage.mjs?v=43';
 import {createKitchenPosition,createFridgePerson} from './kitchen-position.mjs?v=42';
 import {initKitchenPositionUI} from './kitchen-position-ui.js?v=42';
 import {createWetSharedDoor} from './wet-shared-door.mjs?v=41';
@@ -27,12 +28,13 @@ const rooms=[
 {id:'flex',name:'多功能活动区',en:'FLEXIBLE LIVING',desc:'活动区按图纸保留开放地面，配整墙收纳与靠南墙收拢的四扇折叠移门，向右侧阳台延伸。',facts:['衣柜 3400 × 600','8百库 800 × 800 · 过道侧开门','四扇折叠移门'],x:1130,z:765,dist:8.7}
 ];
 let selected='all',mode='scene',fullWalls=false,showLabels=true,topMode=false,renderer,scene,camera,controls,flight=null,wallGroup,openingGroup,labelItems=[],frame=0;
+let laundryStorage=null,laundryStorageOpen=false;
 let kitchenPosition=null,kitchenPositionUI=null,fridgePerson=null;
 let islandSink=null,sharedWetDoor=null,wetDoorSide='shower';
 let pulloutGroup=null,pulloutOpen=false,pulloutFlight=null,photoRoof,photoSaved=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomNav=$('#rooms');rooms.forEach((r,i)=>{let b=document.createElement('button');b.dataset.room=r.id;b.innerHTML=`<span class="room-num">0${i+1}</span>${r.name}<span class="chevron">›</span>`;b.onclick=()=>{selectRoom(r.id);setMode('scene')};roomNav.append(b)});
-function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#kitchen-position-toggle').classList.toggle('hidden',id!=='kitchen');if(id!=='kitchen')kitchenPositionUI?.close();$('#wet-entry-detail').classList.toggle('hidden',id!=='bath');$('#wet-shared-toggle').classList.toggle('hidden',id!=='bath');$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
+function selectRoom(id,move=true){selected=id;lightingDesign?.setRoom(id);$('#kitchen-position-toggle').classList.toggle('hidden',id!=='kitchen');if(id!=='kitchen')kitchenPositionUI?.close();$('#laundry-storage-toggle').classList.toggle('hidden',id!=='bath');$('#wet-entry-detail').classList.toggle('hidden',id!=='bath');$('#wet-shared-toggle').classList.toggle('hidden',id!=='bath');$('#bunk-detail').classList.toggle('hidden',id!=='second');$('#pullout-toggle').classList.toggle('hidden',id!=='bath');$('#vanity-detail').classList.toggle('hidden',id!=='bath');$('#kitchen-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-detail').classList.toggle('hidden',id!=='kitchen');$('#west-counter-detail').classList.toggle('hidden',id!=='kitchen');$('#coffee-detail').classList.toggle('hidden',id!=='kitchen');$('#west-junction-detail').classList.toggle('hidden',id!=='kitchen');$('#sink-accessories').classList.toggle('hidden',id!=='kitchen');$('#storage-detail').classList.toggle('hidden',id!=='flex');let r=rooms.find(r=>r.id===id);document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===id);b.setAttribute('aria-current',b.dataset.room===id?'true':'false')});$('#room-code').textContent=`0${rooms.indexOf(r)+1} / ${r.en}`;$('#room-title').textContent=r.name;$('#room-desc').textContent=r.desc;$('#room-facts').replaceChildren(...r.facts.map(t=>{let el=document.createElement('span');el.textContent=t;return el}));$('#view-title').textContent=r.name;$('#view-subtitle').textContent=id==='all'?'开放的日常，安静的私享。':r.desc;if(move&&camera){topMode=false;updateViewButtons();moveCamera(r)}}
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['scene','gallery','plan'].forEach(v=>$('#'+v+'-view').classList.toggle('hidden',v!==m));if(m==='scene')requestAnimationFrame(resize)}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('#mini-plan').onclick=()=>setMode('plan');$('#about').onclick=()=>$('#about-dialog').showModal();$('#close-about').onclick=()=>$('#about-dialog').close();$('#about-dialog').onclick=e=>{if(e.target===$('#about-dialog'))$('#about-dialog').close()};
 const gallery=[['02','玄关与连续收纳'],['03','餐厨一体'],['04','岛台与过道'],['05','餐厅视角'],['06','四扇折叠移门'],['07','外置洗漱台'],['08','洗烘收纳'],['09','主卧室'],['10','次卧室']];let galleryIndex=1;
@@ -346,9 +348,11 @@ for(let y of[.04,.90]){
 }
 slab(wx,wz,.65,.65,1.78,.57,M.cream);
 const lsx=wx+.65,LS=D.laundrySide;
+const laundryLegacyStart=scene.children.length;
 slab(lsx,wz,LS.width,LS.depth,.04,.70,M.cream);slab(lsx,wz,LS.width,LS.depth,.74,.022,M.white);
 slab(lsx,wz,.47,.18,1.24,1.07,M.cream);
 for(let y of[1.27,1.80])slab(lsx+.018,wz+.18,.434,.018,y,.50,M.cream);
+const laundryLegacy=scene.children.slice(laundryLegacyStart);
 // Keep toilet independent; register the old wet fronts before replacing them.
 const oldWetSceneStart=scene.children.length,oldWetOpeningStart=openingGroup.children.length;
 rect(902,333,903,415,.02,2.33,M.glass);doorway(804,415,902,415,2.35,M.wood);doorway(902,415,1004,415,2.35,M.wood);
@@ -494,6 +498,7 @@ islandSink=installIslandSink({THREE,scene,island:I,top:islandTop,body:islandBody
 legacyWestSink.forEach(mesh=>mesh.visible=false);
 recessWestCabinet({THREE,body:westCounterBody,fronts:westCounterFronts,handles:westCounterHandles});
 correctWestJunctions({THREE,layout:K,window:KW,gas:GC,height:D.ceiling,walls:westStepWalls,body:northCounterBody,top:northCounterTop});
+laundryStorage=correctLaundryStorage({THREE,scene,washerX:wx,washerZ:wz,washerWidth:W.width,washerDepth:W.depth,legacy:laundryLegacy,materials:M});
 sharedWetDoor=createWetSharedDoor({THREE,scene,openingGroup,materials:M,legacy:oldWetFronts,divider:wetDivider});
 softenFurnitureEdges(scene,M);
 installCoffeeMachine({THREE,scene,counter:L});
@@ -545,6 +550,7 @@ $('#kitchen-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#ro
 $('#sink-detail').onclick=()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const I=K.island;moveCamera({id:'sink-detail',x:planX(I.x+1.52),z:planZ(I.z+.34+(kitchenPosition?.offsetCm??10)/100),dist:1.8,aimY:.91,fit:false,direction:[.20,1.65,-1]});};
 $('#west-junction-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'west-junction-detail',x:planX(K.shortSide.x-.18),z:planZ(K.longSide.z),dist:2.6,aimY:1.1,fit:false,direction:[1,.32,1.25]});};
 $('#wet-entry-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();moveCamera({id:'wet-entry-detail',x:854,z:362,dist:3.0,aimY:1.1,fit:true,direction:[.15,.24,1]});};
+$('#laundry-storage-toggle').onclick=()=>{if(!laundryStorage)return;laundryStorageOpen=!laundryStorageOpen;laundryStorage.setOpen(laundryStorageOpen);$('#laundry-storage-toggle').textContent=laundryStorageOpen?'关闭洗衣上柜':'打开洗衣上柜';$('#laundry-storage-toggle').setAttribute('aria-pressed',String(laundryStorageOpen));renderQuality.invalidate();};
 $('#wet-shared-toggle').onclick=()=>{if(!sharedWetDoor)return;if(!fullWalls)$('#walls').click();wetDoorSide=wetDoorSide==='shower'?'laundry':'shower';sharedWetDoor.setSide(wetDoorSide);$('#wet-shared-toggle').textContent=wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧';$('#wet-shared-toggle').setAttribute('aria-label',wetDoorSide==='shower'?'门转到洗衣侧':'门转到淋浴侧');renderQuality.invalidate();};
 $('#bunk-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';if(!fullWalls)$('#walls').click();updateViewButtons();const p=bunkBedPlacement();moveCamera({id:'bunk-detail',x:planX(p.x),z:planZ(p.z+.15),dist:3.45,aimY:.92,fit:true,direction:[-.65,.85,1]});};
 $('#coffee-detail').onclick=()=>{controls.autoRotate=false;topMode=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();const L=K.longSide;moveCamera({id:'coffee-detail',x:planX(L.x+.32),z:planZ(L.z+coffeeMachineSpec.offsetZ),dist:1.65,aimY:1.16,fit:false,direction:[1,.5,-.7]});};
