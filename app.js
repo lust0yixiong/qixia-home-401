@@ -19,6 +19,8 @@ import {installCoffeeMachine,coffeeMachineSpec} from './coffee-machine.mjs?v=37'
 import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';
 const $=s=>document.querySelector(s);
+// Detail actions require the scene and render controller to finish initializing.
+document.querySelectorAll('.scene-tools button').forEach(button=>button.disabled=true);
 const rooms=[
 {id:'all',name:'全屋鸟瞰',en:'OVERVIEW',desc:'餐厨一体与多功能活动区相连，双卧室和独立卫浴分区位于内侧。',facts:['双卧室','开放餐厨','干湿分区'],x:850,z:600,dist:22},
 {id:'kitchen',name:'餐厨空间',en:'KITCHEN & DINING',desc:'高低错层的黑灰色岛台与餐桌相接，绿色长条砖衬托浅色橱柜。西侧柜体按平面尺寸衔接墙体转折，台面距岛台净宽 1360 毫米，下柜内退 200 毫米。',facts:['海氏 C9 Pro 咖啡机','骊住 3D 水槽 830 × 560','西柜深 400 · 台面深 600','窄柜 440 × 1800','岛台侧净距 1360','岛台高 1010'],x:620,z:745,dist:10.5},
@@ -513,7 +515,7 @@ lightingDesign=createLightingDesign({scene,sun,fill,hemi,renderer,onChange:()=>r
 ]});
 // Closed roof is render-only and is excluded from the stable material registry.
 photoRoof=new THREE.Mesh(geom.clone(),M.wall);photoRoof.position.y=D.ceiling;photoRoof.visible=false;photoRoof.name='photo-ceiling';photoRoof.userData.photoExcludePicking=true;scene.add(photoRoof);
-wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
+wallGroup.scale.y=.25;openingGroup.visible=false;resize();moveCamera(rooms[0],true);$('#loading').remove();document.querySelectorAll('.scene-tools button').forEach(button=>button.disabled=false);animate();window.__qixia={scene,camera,renderer,rooms,source:'P.01 / P.12',kitchenLayout:K,kitchenWindow:KW,foldingDoorLayout:FD,cookingWallLayout:CW,kitchenGasCabinet:GC,interiorLayout:D,dimensions:{island:[2,1.1],table:[1.9,.9],bed:[1.8,2]}};
 }
 function moveCamera(r,immediate=false){if(!camera)return;if(photoSaved){leavePhoto();renderQuality.invalidate();}let target=r.id==='all'?new THREE.Vector3(.0,.25,0):new THREE.Vector3(X(r.x),r.aimY??.35,Z(r.z));let dist=r.dist;if(r.fit!==false&&camera.aspect<1.15)dist*=1.15/camera.aspect;dist=Math.min(dist,41);let direction=topMode?new THREE.Vector3(0,1,.001):new THREE.Vector3(.58,.93,1.05).normalize();if(r.id==='master')direction=new THREE.Vector3(.55,2.2,1.4).normalize();if(r.id==='bath')direction=new THREE.Vector3(.15,2.0,-1.0).normalize();if(r.id==='second')direction=new THREE.Vector3(.40,1.8,-1.0).normalize();if(r.direction)direction=new THREE.Vector3(...r.direction).normalize();if(topMode)direction=new THREE.Vector3(0,1,.001);const pos=target.clone().addScaledVector(direction,dist);if(immediate||reduced){camera.position.copy(pos);controls.target.copy(target);controls.update();flight=null}else flight={from:camera.position.clone(),to:pos,fromTarget:controls.target.clone(),toTarget:target,start:performance.now()}}
 function resize(){if(!renderer||mode!=='scene')return;let b=$('#canvas-wrap').getBoundingClientRect();if(!b.width||!b.height)return;camera.aspect=b.width/b.height;camera.updateProjectionMatrix();if(renderQuality)renderQuality.resize(b.width,b.height);else renderer.setSize(b.width,b.height);}
