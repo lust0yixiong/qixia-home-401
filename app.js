@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import {createApplianceMaterials} from './appliance-materials.mjs?v=44';
 import {createLightingDesign} from './lighting-design.js?v=29';
-import { initMaterialEditor } from './material-editor.js?v=33';
+import { initMaterialEditor } from './material-editor.js?v=44';
 import {createFinishLibrary} from './surface-finishes.js?v=33';
 import {softenFurnitureEdges} from './surface-edges.js?v=21';
 import {createRenderQuality} from './render-quality.js?v=33';
@@ -15,7 +16,7 @@ import {createWetSharedDoor} from './wet-shared-door.mjs?v=41';
 import {createBunkBed,bunkBedPlacement} from './bunk-bed.mjs?v=40';
 import {correctWestJunctions} from './west-junctions.mjs?v=38';
 import {recessWestCabinet} from './west-cabinet.mjs?v=39';
-import {installCoffeeMachine,coffeeMachineSpec} from './coffee-machine.mjs?v=37';
+import {installCoffeeMachine,coffeeMachineSpec} from './coffee-machine.mjs?v=44';
 import {installIslandSink} from './island-sink.mjs?v=30';
 import {correctFlexStorage} from './flex-storage.mjs?v=26';
 const $=s=>document.querySelector(s);
@@ -140,7 +141,7 @@ let stone=mat('#fff');let wood=mat('#ffffff',.8);M={wall:mat('#f5f2e8'),trim:mat
 for(const [name,material] of Object.entries(M))material.name=name;
 M.countertop=M.dark.clone();
 M.vanityStone=M.wetTile.clone();M.vanityStone.userData.surfaceIdBase='wetTile';
-finishLibrary=createFinishLibrary(THREE,renderer);await finishLibrary.preload();finishLibrary.initialize(M);
+finishLibrary=createFinishLibrary(THREE,renderer);await finishLibrary.preload();finishLibrary.initialize(M);createApplianceMaterials(M);
 wallGroup=new THREE.Group();scene.add(wallGroup);openingGroup=new THREE.Group();scene.add(openingGroup);
 const hemi=new THREE.HemisphereLight('#f5f5ef','#aaa394',.65);scene.add(hemi);let sun=new THREE.DirectionalLight('#fff3de',2.8);sun.name='photo-sun';sun.position.set(-7,11,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:.5,far:35});sun.shadow.bias=-.00015;sun.shadow.normalBias=.012;sun.shadow.radius=4;scene.add(sun);let fill=new THREE.DirectionalLight('#dae7f4',.4);fill.position.set(-8,8,-7);scene.add(fill);
 box(0,-.37,0,200,.1,200,mat('#e9eeeb'));
@@ -172,7 +173,7 @@ for(const [x1,z1,x2,z2] of[[1455,609,1455,904],[1315,609,1455,609],[1315,904,145
  const n=Math.ceil(len/.18);for(let i=0;i<=n;i++)box(-len/2+len*i/n,.62,0,.02,.84,.025,M.windowFrame,g);
 }
 rect(1328,858,1371,902,.0,.85,M.cream);rect(1325,856,1374,904,.85,.03,M.white);sink(1348,878,.88,.32,.32);
-rect(1322,625,1341,660,1.20,.64,M.white);rect(1341,632,1342,650,1.36,.20,M.dark);for(let z of[634,651])rod([X(1332),1.20,Z(z)],[X(1332),.95,Z(z)],.012,M.chrome);
+rect(1322,625,1341,660,1.20,.64,M.heaterShell);rect(1341,632,1342,650,1.36,.20,M.dark);for(let z of[634,651])rod([X(1332),1.20,Z(z)],[X(1332),.95,Z(z)],.012,M.chrome);
 // P.01 balcony sliding glass doorway, shown half open; widths are traced.
 doorway(1314,688,1314,860);
 for(let off of[0,3])doorLeaf(1314+off,688,1314+off,774,2.35,M.windowFrame,true,openingGroup);
@@ -189,7 +190,7 @@ slab(CW.x,cookingBack-.018,runW,.018,.80,.75,M.green);
 for(let x=CW.x+.08;x<CW.x+runW;x+=.11)slab(x,cookingBack-.001,.004,.003,.81,.73,M.trim);
 slab(CW.x,cookingBack,runW,.30,1.55,.80,M.cream);
 for(let x=CW.x+.5;x<CW.x+runW;x+=.5)slab(x,cookingBack+.30,.008,.008,1.56,.78,M.trim);
-slab(CW.x+.3,cookingBack+.23,1.13,.30,1.48,.07,M.dark);
+slab(CW.x+.3,cookingBack+.23,1.13,.30,1.48,.07,M.hoodShell);
 // EL.01: separate spice shelf in the left-hand backsplash bay (350/50/350 chain).
 slab(CW.x,cookingBack+.01,GC.spiceShelf.width,GC.spiceShelf.depth,GC.spiceShelf.bottom,GC.spiceShelf.thickness,M.dark);
 for(let x of[CW.x+.64,CW.x+1.22]){cyl(x,.818,cookingBack+.34,.106,.012,M.metal);cyl(x,.83,cookingBack+.34,.067,.013,M.dark)}
@@ -210,14 +211,14 @@ slab(CW.pierX-.012,cookingBack,.012,CW.depth,0,CW.cabinetHeight,M.wood);
 slab(CW.pierX+CW.pierWidth,CW.frontZ-CW.depth,.012,CW.depth,0,CW.cabinetHeight,M.wood);
 // Fridge sits within the surround, rather than as an isolated dark box.
 const gap=.024,fx=CW.fridgeX+gap,fw=CW.fridgeBayWidth-gap*2,fridgeH=1.92;
-slab(fx,CW.frontZ-.60,fw,.58,.03,fridgeH-.03,M.metal);
+slab(fx,CW.frontZ-.60,fw,.58,.03,fridgeH-.03,M.fridgeShell);
 const fridgeFace=CW.frontZ+.002;
-for(let i=0;i<2;i++)slab(fx+i*fw/2+.003,fridgeFace,fw/2-.006,.025,.91,1.005,M.metal);
-for(let y of[.18,.54])slab(fx+.003,fridgeFace,fw-.006,.025,y,.345,M.metal);
+for(let i=0;i<2;i++)slab(fx+i*fw/2+.003,fridgeFace,fw/2-.006,.025,.91,1.005,M.fridgeShell);
+for(let y of[.18,.54])slab(fx+.003,fridgeFace,fw-.006,.025,y,.345,M.fridgeShell);
 for(let x of[fx+fw/2-.033,fx+fw/2+.022])slab(x,fridgeFace+.026,.011,.023,1.15,.4,M.dark);
 for(let y of[.50,.86])slab(fx+.10,fridgeFace+.026,fw-.20,.018,y,.012,M.dark);
 slab(fx,fridgeFace,fw,.025,.04,.105,M.dark);
-for(let y of[.058,.085,.112])slab(fx+.018,fridgeFace+.026,fw-.036,.005,y,.006,M.metal);
+for(let y of[.058,.085,.112])slab(fx+.018,fridgeFace+.026,fw-.036,.005,y,.006,M.fridgeShell);
 // EL.01 shows a closed panel over the fridge and a service cabinet to its right.
 slab(CW.fridgeX,CW.frontZ-.60,CW.fridgeBayWidth,.616,fridgeH+.025,CW.cabinetHeight-fridgeH-.025,M.wood);
 const serviceW=CW.serviceRightX-CW.serviceX;
@@ -270,7 +271,7 @@ for(let x of[I.x,I.x+I.width-stoneEnd])slab(x,I.z,stoneEnd,I.depth,0,.89,M.count
 for(let n=0;n<2;n++)slab(I.x+stoneEnd+.007+n*barInnerWidth/2,barFront-barDoorThickness,barInnerWidth/2-.014,barDoorThickness,.06,.81,M.wood);
 // Working side: drawers, dishwasher, sink cabinet, as the island plan.
 for(let y of[.08,.345,.61])slab(I.x+.008,I.z-.018,.484,.018,y,.25,M.cream);
-slab(I.x+.508,I.z-.02,.584,.022,.06,.815,M.cream);
+slab(I.x+.508,I.z-.02,.584,.022,.06,.815,M.dishwasherShell);
 slab(I.x+.508,I.z-.043,.584,.018,.79,.07,M.metal);
 slab(I.x+1.108,I.z-.018,.884,.018,.06,.815,M.cream);
 const legacyIslandSink=sink(planX(I.x+1.52),planZ(I.z+.34),D.island.top,.80,.52,Math.PI);
@@ -341,9 +342,9 @@ for(const [a,b] of[[724,802],[806,900],[946,1000]]){
 rect(741,280,785,298,.08,.83,M.cream);rounded(X(762),.33,Z(321),.44,.30,.63,.13,M.white);rounded(X(762),.499,Z(323),.37,.035,.44,.14,M.linen);
 // P.12 uses a 650 x 650 bay; appliance details remain schematic.
 const W=D.washerBay,wx=X(806),wz=Z(280);
-slab(wx,wz,W.width,W.depth,.04,1.72,M.white);
+for(const [y,m] of [[.04,M.washerShell],[.90,M.dryerShell]])slab(wx,wz,W.width,W.depth,y,.86,m);
 for(let y of[.04,.90]){
- slab(wx+.015,wz+W.depth+.001,.62,.014,y+.72,.105,M.cream);
+ slab(wx+.015,wz+W.depth+.001,.62,.014,y+.72,.105,y<.5?M.washerShell:M.dryerShell);
  slab(wx+.40,wz+W.depth+.018,.18,.007,y+.747,.045,M.dark);
  const ring=new THREE.Mesh(new THREE.CylinderGeometry(.225,.225,.038,32),M.chrome);ring.rotation.x=Math.PI/2;ring.position.set(wx+.325,y+.38,wz+W.depth+.017);scene.add(ring);
  const glass=new THREE.Mesh(new THREE.CylinderGeometry(.185,.185,.045,32),M.dark);glass.rotation.x=Math.PI/2;glass.position.set(wx+.325,y+.38,wz+W.depth+.027);scene.add(glass);
@@ -478,6 +479,7 @@ slab(CW.x,cookingBack+.28,runW,.02,1.54,.013,kitchenLed);
 slab(vx+.03,vz+.08,mirrorW-.06,.014,.235,.012,vanityLed);
 rooms.slice(1).forEach(r=>{let el=document.createElement('div');el.className='room-label';el.textContent=r.name;$('#labels').append(el);labelItems.push({el,point:new THREE.Vector3(X(r.x),.12,Z(r.z))})});let entry=document.createElement('div');entry.className='room-label';entry.textContent='入口';$('#labels').append(entry);labelItems.push({el:entry,point:new THREE.Vector3(X(762),.1,Z(985))});
 renderQuality=createRenderQuality({renderer,scene,camera,sun,getLighting:()=>lightingDesign.photoState(),onPhotoView:photoView,onPhotoExit:leavePhoto});
+installCoffeeMachine({THREE,scene,counter:L,shellMaterial:M.coffeeShell});
 initMaterialEditor({THREE,materials:M,renderer,scene,camera,finishLibrary,onChange:()=>renderQuality.invalidate(),onOpen:()=>{lightingDesign?.close();controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转'}});
 // Shape the existing registered cheek, preserving its material and component key.
 // Upper depth is the model's 300 mm cabinet depth; the 230 mm inset is inferred
@@ -503,7 +505,7 @@ correctWestJunctions({THREE,layout:K,window:KW,gas:GC,height:D.ceiling,walls:wes
 laundryStorage=correctLaundryStorage({THREE,scene,washerX:wx,washerZ:wz,washerWidth:W.width,washerDepth:W.depth,legacy:laundryLegacy,materials:M});
 sharedWetDoor=createWetSharedDoor({THREE,scene,openingGroup,materials:M,legacy:oldWetFronts,divider:wetDivider});
 softenFurnitureEdges(scene,M);
-installCoffeeMachine({THREE,scene,counter:L});
+
 kitchenPosition=createKitchenPosition({THREE,scene,parts:[...kitchenMovingParts,islandSink.root],layout:K,cooking:CW});
 fridgePerson=createFridgePerson({THREE,scene,cooking:CW});
 kitchenPositionUI=initKitchenPositionUI({placement:kitchenPosition,person:fridgePerson,onChange:()=>renderQuality.invalidate(),onView:()=>{topMode=false;controls.autoRotate=false;$('#rotate').setAttribute('aria-pressed','false');$('#rotate').textContent='自动旋转';updateViewButtons();moveCamera({id:'fridge-operation',x:planX(CW.fridgeX+.25),z:planZ(CW.frontZ+.60),dist:4.6,aimY:.85,fit:true,direction:[.7,.8,1]});}});

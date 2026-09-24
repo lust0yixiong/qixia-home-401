@@ -1,7 +1,7 @@
 // Exterior study of Hauswirt C9 Pro. Envelope is provisionally based on the
 // manufacturer's C9 dimensions, not a verified C9 Pro installation drawing.
 export const coffeeMachineSpec=Object.freeze({width:.315,depth:.493,height:.406,backGap:.035,offsetZ:2.0625,top:.970});
-export function installCoffeeMachine({THREE,scene,counter}){
+export function installCoffeeMachine({THREE,scene,counter,shellMaterial}){
  const S=coffeeMachineSpec,root=new THREE.Group();root.name='hauswirt-c9-pro';
  // Local +Z is the operating face; turn it towards the kitchen aisle (+world X).
  root.position.set(counter.x+S.backGap+S.depth/2,S.top,counter.z+S.offsetZ);root.rotation.y=Math.PI/2;scene.add(root);
@@ -72,5 +72,6 @@ export function installCoffeeMachine({THREE,scene,counter}){
  }
  rod([.038,.211,.152],[.070,.231,.176],.006,chrome,'coffee-brew-lever');
  rod([.070,.231,.176],[.078,.280,.181],.009,wood,'coffee-brew-lever-grip');
+ if(shellMaterial){const shells=new Set(['coffee-plinth','coffee-boiler-housing','coffee-side-wing','coffee-polished-front','coffee-top-lip','coffee-drip-front','coffee-drip-rim']);root.traverse(o=>{if(o.isMesh&&shells.has(o.name))o.material=shellMaterial;});}
  root.updateMatrixWorld(true);return {root,spec:S};
 }

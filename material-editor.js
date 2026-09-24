@@ -1,10 +1,11 @@
+import {APPLIANCE_GROUPS} from './appliance-materials.mjs?v=44';
 import {FINISHES} from './surface-finishes.js?v=33';
-import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=25';
+import { buildSurfaceRegistry, assignSurfaceMaterial, installMaterialPicking } from './material-selection.js?v=44';
 import {REFERENCE_REVISION, migrateReferenceDefaults} from './reference-materials.js?v=25';
 const GROUPS = [
   ['wood', '木饰面与木家具'], ['cream', '浅色柜体与家具'], ['countertop', '厨房台面、岛台与餐桌'],
   ['stone', '地面石材'], ['wall', '墙面'], ['green', '厨房墙砖'], ['wetTile', '卫浴墙面'], ['vanityStone', '洗漱区石材挡水墙'],
-  ['windowFrame', '窗框与窗套'], ['linen', '座垫与床垫织物'], ['duvet', '床上织物'], ['pink', '次卧床架']
+  ['windowFrame', '窗框与窗套'], ['linen', '座垫与床垫织物'], ['duvet', '床上织物'], ['pink', '次卧床架'], ...APPLIANCE_GROUPS
 ];
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FILE = 10 * 1024 * 1024;

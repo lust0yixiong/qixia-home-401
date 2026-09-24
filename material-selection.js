@@ -73,7 +73,7 @@ export function installMaterialPicking({THREE, scene, camera, canvas, surfaces, 
       const m = Array.isArray(hit.object.material) ? hit.object.material[slot] : hit.object.material;
       if (!m.visible || (m.transparent && m.opacity < .3)) continue;
       const key = surfaces.lookup.get(hit.object)?.get(slot);
-      if (!key) {onHint('这处暂不支持换材质，请选择墙面、台面或柜体等部件。');return;}
+      if (!key) {onHint('这处暂不支持换材质，请选择墙面、台面、柜体或电器外壳。');return;}
       if (onPick(key) !== false) {highlight(key);onHint('已选中橙色描边部件，可继续点击其他部件。');}
       return;
     }
